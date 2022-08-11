@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CodeSnippets xmlns="http://schemas.microsoft.com/VisualStudio/2005/CodeSnippet">
+	<CodeSnippet Format="1.0.0">
+		<Header>
+			<Title>Constructor Only Appendable Collection Property</Title>
+			<Author>Meep.Tech</Author>
+			<Description>Sets up a read only collection property that can only have values added to it in the constructors of overriding types.</Description>
+			<Shortcut>xbpropcapp</Shortcut>
+		</Header>
+		<Snippet>
+			<Code Language="CSharp"> 
+				<![CDATA[/** <summary> A Read-Only Collection of $PropertyType$s </summary> **/ public IReadOnlyCollection<$PropertyType$> $Name$ { get => _$Name$; } List<$PropertyType$> _$Name$ = new(); /** <summary> Can be used to append more $PropertyType$ values to the $Name$ collection in the ctor.</summary> **/ protected IReadOnlyCollection<$PropertyType$> Additional$Name$ { init => value.ForEach(_$Name$.Add); }]]>
+			</Code>
+			<Declarations>
+				<Literal>
+					<ID>PropertyType</ID>
+					<ToolTip>The System Type of the Property</ToolTip>
+					<Default>object</Default>
+				</Literal>
+				<Literal>
+					<ID>Name</ID>
+					<ToolTip>The name of the Collection of values</ToolTip>
+					<Default>Items</Default>
+				</Literal>
+			</Declarations>
+		</Snippet>
+	</CodeSnippet>
+</CodeSnippets>

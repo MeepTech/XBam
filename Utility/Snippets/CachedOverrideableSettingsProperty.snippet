@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CodeSnippets xmlns="http://schemas.microsoft.com/VisualStudio/2005/CodeSnippet">
+	<CodeSnippet Format="1.0.0">
+		<Header>
+			<Title>Virtual Override Only Apendable Collection Property</Title>
+			<Author>Meep.Tech</Author>
+			<Description>Sets up a property that can be overriden by a child class easily using append methods and => syntax, and keeps the initialy created value cached and read/get only.</Description>
+			<Shortcut>xbpropvap</Shortcut>
+		</Header>
+		<Snippet>
+			<Code Language="CSharp"> 
+				<![CDATA[public virtual $PropertyType$ $Name$ {get => _$Name$ ?? new();} /** <summary> The backing field used to initialize and override the initail value of $Name$. You can this syntax to override or add to the base initial value: '=> _$Name$ ??= base.$Name$.Append(...' </summary> **/ protected $PropertyType$ _$Name$ { get => __$Name$; set => __$Name$ = value;} $PropertyType$ __$Name$;]]>
+			</Code>
+			<Declarations>
+				<Literal>
+					<ID>PropertyType</ID>
+					<ToolTip>The System Type of the Property</ToolTip>
+					<Default>IEnumerable</Default>
+				</Literal>
+				<Literal>
+					<ID>Name</ID>
+					<ToolTip>The name of the Enumeration Object Value</ToolTip>
+					<Default>Appendable Property</Default>
+				</Literal>
+			</Declarations>
+		</Snippet>
+	</CodeSnippet>
+</CodeSnippets>

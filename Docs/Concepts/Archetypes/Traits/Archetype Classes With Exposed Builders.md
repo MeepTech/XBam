@@ -1,0 +1,4 @@
+The [[Archetype+2]] class has 3 Child Classes which expose various sets of the normally Protected [[Model Builder Method]]s for Public use using [[IExposeDefaultModelBuilderMakeMethods]]
+- [[Archetype+2.WithDefaultParamBasedModelBuilders]]: Exposes only the Model Builder Methods which take a collection of [[Param]]s as their Method Parameters.
+- [[Archetype+2.WithDefaultBuilderBasedModelBuilders]]: Exposes only the Model Builder Methods which take a [[Builder]] a their only Method Parameter.
+- [[Archetype+2.WithAllDefaultModelBuilders]]: Exposes both sets of Model Builder Methods that take [[Param]]s and [[Builder]]s as Method Parameters.

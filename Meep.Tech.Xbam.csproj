@@ -1,0 +1,47 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	
+
+	<PropertyGroup>
+		<TargetFrameworks>netstandard2.1;net5;net6</TargetFrameworks>
+		<LangVersion>9.0</LangVersion>
+	    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<RootNamespace>Meep.Tech.Data</RootNamespace>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard2.1|AnyCPU'">
+	  <DebugType>portable</DebugType>
+	  <DebugSymbols>true</DebugSymbols>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <Compile Remove="Utility\Templates\*" />
+	  <None Include="Utility\Templates\*" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Compile Remove="Utility\Templates\New XBam Base Model and Base Archetype Nested Classes\New XBam Base Model and Base Archetype Nested Classes.cs" />
+	  <Compile Remove="Utility\Templates\New XBam Base Model and Base Archetype Nested Classes\New XBam Enumeration Type Class.cs" />
+	  <Compile Remove="Utility\Templates\New XBam Enumeration Type Class\New XBam Enumeration Type Class.cs" />
+	  <Compile Remove="Utility\Templates\New XBam Struct Model and Base Archetype Nested Class\New XBam Struct Model and Base Archetype Nested Class.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Include="Utility\Templates\New XBam Base Model and Base Archetype Nested Classes\New XBam Base Model and Base Archetype Nested Classes.cs" />
+	  <None Include="Utility\Templates\New XBam Enumeration Type Class\New XBam Enumeration Type Class.cs" />
+	  <None Include="Utility\Templates\New XBam Struct Model and Base Archetype Nested Class\New XBam Struct Model and Base Archetype Nested Class.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="CompareNETObjects" Version="4.74.0" />
+	  <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Reference Include="PropertyAccess">
+	    <HintPath>..\..\_external\PropertyAccess\src\PropertyAccess\bin\Release\PropertyAccess.dll</HintPath>
+	  </Reference>
+	</ItemGroup>
+
+	<Import Project="post-build-copy.csproj" Condition="Exists('post-build-copy.csproj')" />
+
+</Project>

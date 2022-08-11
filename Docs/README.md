@@ -1,0 +1,1 @@
+Docs are formatted for Obsidian.md

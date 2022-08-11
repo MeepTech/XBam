@@ -1,0 +1,1 @@
+Parameters are key-value pairs used to create a new [[Model]] from it's Factory [[Archetype]]. Parameters can be as simple as just a String for a key, and an Object as a value, or they can be specifically implemented as extensions of [[Param]] Enumerations.

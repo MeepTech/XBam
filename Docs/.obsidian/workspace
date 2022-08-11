@@ -1,0 +1,143 @@
+{
+  "main": {
+    "id": "57360317bdd5974d",
+    "type": "split",
+    "children": [
+      {
+        "id": "065ad034f4eeed1b",
+        "type": "leaf",
+        "state": {
+          "type": "markdown",
+          "state": {
+            "file": "Concepts/Archetypes/Archetype.md",
+            "mode": "preview"
+          }
+        }
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "98fef32f7d93c383",
+    "type": "split",
+    "children": [
+      {
+        "id": "451f16a842350379",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "64269f3f9300c278",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {}
+            }
+          },
+          {
+            "id": "ac11c1fedcdcd9be",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "1e1824f29ad78d3c",
+            "type": "leaf",
+            "state": {
+              "type": "starred",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "4dc6c771b9bb0941",
+    "type": "split",
+    "children": [
+      {
+        "id": "f455494454b8d50d",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "bfc5eb570a321d04",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Concepts/Archetypes/Archetype.md",
+                "collapseAll": true,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "d90f21fcf187762e",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Concepts/Archetypes/Archetype.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "37af49041b3fbd70",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true
+              }
+            }
+          },
+          {
+            "id": "730e15e3577f0165",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Concepts/Archetypes/Archetype.md"
+              }
+            }
+          }
+        ],
+        "currentTab": 3
+      }
+    ],
+    "direction": "horizontal",
+    "width": 331
+  },
+  "active": "065ad034f4eeed1b",
+  "lastOpenFiles": [
+    "Concepts/Archetypes/Archetype.md",
+    "Concepts/Archetypes/Traits/Archetype Classes With Exposed Builders.md",
+    "Concepts/XBam.md",
+    "Concepts/Models/Parameter.md",
+    "Concepts/Archetypes/Traits/Splayable.md",
+    "Code/Enumeration.md",
+    "Code/Archetype+2.md",
+    "Code/Archetype+2.Identity.md",
+    "Code/Enumeration+1.md",
+    "README.md"
+  ]
+}

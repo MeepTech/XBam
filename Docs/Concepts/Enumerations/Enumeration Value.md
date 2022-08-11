@@ -1,0 +1,1 @@
+An Enumeration Value is an Object with a unique key among an [[Concepts/Enumerations/Enumeration|Enumeration]], that inherits from the [[Enumeration Base Class| Enumeration's Base Type]].

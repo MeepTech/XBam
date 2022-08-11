@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CodeSnippets xmlns="http://schemas.microsoft.com/VisualStudio/2005/CodeSnippet">
+	<CodeSnippet Format="1.0.0">
+		<Header>
+			<Title>Xbam New Enum Type Class</Title>
+			<Author>Meep.Tech</Author>
+			<Description>Sets up a basic template for an Enumeration Type's class</Description>
+			<Shortcut>xbcenum</Shortcut>
+		</Header>
+		<Snippet>
+			<Code Language="CSharp">
+				<![CDATA[public class $ClassName$ : Enumeration<$ClassName$> { protected $ClassName$(string uniqueNameFor$ClassName$) : base(uniqueNameFor$ClassName$) {}}]]>
+			</Code>
+			<Declarations>
+				<Literal>
+					<ID>ClassName</ID>
+					<ToolTip>The new Enumeration class to create</ToolTip>
+					<Default>EnumType</Default>
+				</Literal>
+			</Declarations>
+		</Snippet>
+	</CodeSnippet>
+</CodeSnippets>

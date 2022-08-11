@@ -1,0 +1,14 @@
+<VSTemplate Version="3.0.0" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005" Type="Item">
+  <TemplateData>
+    <DefaultName>MyModel.cs</DefaultName>
+    <Name>New XBam Struct Model and Base Archetype Nested Class</Name>
+    <Description>Base template for a new Base Model[,].IFromInterface struct and paired Archetype[,].</Description>
+    <ProjectType>CSharp</ProjectType>
+    <SortOrder>120</SortOrder>
+    <Icon>__TemplateIcon.ico</Icon>
+  </TemplateData>
+  <TemplateContent>
+    <References />
+    <ProjectItem SubType="" TargetFileName="$fileinputname$.cs" ReplaceParameters="true">New XBam Struct Model and Base Archetype Nested Class.cs</ProjectItem>
+  </TemplateContent>
+</VSTemplate>

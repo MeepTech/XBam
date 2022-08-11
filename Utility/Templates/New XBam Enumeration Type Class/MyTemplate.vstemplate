@@ -1,0 +1,14 @@
+<VSTemplate Version="3.0.0" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005" Type="Item">
+  <TemplateData>
+    <DefaultName>MyEnumeration.cs</DefaultName>
+    <Name>New XBam Enumeration Type Class</Name>
+    <Description>Base template for a new type of XBam Enumeration.</Description>
+    <ProjectType>CSharp</ProjectType>
+    <SortOrder>120</SortOrder>
+    <Icon>__TemplateIcon.ico</Icon>
+  </TemplateData>
+  <TemplateContent>
+    <References />
+    <ProjectItem SubType="" TargetFileName="$fileinputname$.cs" ReplaceParameters="true">New XBam Enumeration Type Class.cs</ProjectItem>
+  </TemplateContent>
+</VSTemplate>
