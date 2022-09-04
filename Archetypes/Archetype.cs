@@ -12,7 +12,6 @@ namespace Meep.Tech.XBam {
   /// A singleton data store and factory.
   /// </summary>
   public abstract partial class Archetype : IFactory, IReadableComponentStorage, IEquatable<Archetype>, IBuilderSource, IResource {
-    Universe IResource.Universe => Id.Universe;
     internal DelegateCollection<Func<IModel, IBuilder, IModel>>
       _modelAutoBuilderSteps;
     Type _modelTypeProduced;
@@ -32,6 +31,13 @@ namespace Meep.Tech.XBam {
     /// </summary>
     public Identity Id {
       get;
+    }
+
+    /// <summary>
+    /// The universe this archetype is part of.
+    /// </summary>
+    public Universe Universe { 
+      get; 
     }
 
     /// <summary>
@@ -162,7 +168,8 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Make a new archetype
     /// </summary>
-    internal Archetype(Identity id, Func<Archetype, Identity> getDefaultId) {
+    internal Archetype(Identity id, Universe universe, Func<Archetype, Identity> getDefaultId) {
+      Universe ??= universe;
       Id = id ?? getDefaultId(this);
 
       if(Id is null) {
@@ -595,29 +602,23 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// The base for making a new archetype.
     /// </summary>
-    protected Archetype(Archetype.Identity id, Collection collection = null, Universe universe = null) 
-      : base(id, GetDefaultIdentityKey) 
+    protected Archetype(Archetype.Identity id, Universe universe = null) 
+      : base(id, universe, GetDefaultIdentityKey) 
     {
-      if (universe is null) {
-        universe = Archetypes.DefaultUniverse;
-      }
-
-      if (universe.Loader.IsFinished && !AllowInitializationsAfterLoaderFinalization) {
+      if (Universe.Loader.IsFinished && !AllowInitializationsAfterLoaderFinalization) {
         throw new InvalidOperationException($"Tried to initialize archetype of type {id} while the loader was sealed");
       }
 
-      if (collection is null) {
-        collection = (Collection)
-          // if the base of this is registered somewhere, get the registered one by default
-          (universe.Archetypes.TryToGetCollection(GetType(), out var found)
-            ? found is Collection
-              ? found
-              : universe.Archetypes._collectionsByRootArchetype[typeof(TArchetypeBase).FullName]
-                = new Collection()
-            // else this is the base and we need a new one
-            : universe.Archetypes._collectionsByRootArchetype[typeof(TArchetypeBase).FullName]
-              = new Collection());
-      }
+      var collection = (Collection)
+        // if the base of this is registered somewhere, get the registered one by default
+        (Universe.Archetypes.TryToGetCollection(GetType(), out var found)
+          ? found is Collection
+            ? found
+            : Universe.Archetypes._collectionsByRootArchetype[typeof(TArchetypeBase).FullName]
+              = new Collection()
+          // else this is the base and we need a new one
+          : Universe.Archetypes._collectionsByRootArchetype[typeof(TArchetypeBase).FullName]
+            = new Collection());
 
       collection.Universe.Archetypes._registerArchetype(this, collection);
       _initialize();

@@ -158,29 +158,39 @@ namespace Meep.Tech.XBam.Configuration {
     /// Update the existing component from the given archetypes.
     /// </summary>
     protected void UpdateComponentForArchetypes<TComponent>(Func<TComponent, TComponent> updateComponent, params Archetype[] archetypes)
-      where TComponent : Archetype.IComponent<TComponent> {
-      if (Universe.Loader.IsFinished) {
-        throw new AccessViolationException($"Cannot Modify Archetype Components After Loader is Complete");
-      }
-
-      archetypes.ForEach(archetype => {
-        if (archetype.AllowExternalComponentConfiguration && archetype.HasComponent<TComponent>()) {
-          archetype.UpdateComponent(updateComponent);
-        }
-      });
-    }
+      where TComponent : Archetype.IComponent<TComponent>
+        => _updateComponentsForArchetypes(Universe, new Dictionary<string, Func<Archetype.IComponent, Archetype.IComponent>> {
+          { Components<TComponent>.Key, c => updateComponent((TComponent)c)}
+        }, archetypes);
 
     /// <summary>
     /// Update the existing component from the given archetypes.
     /// </summary>
-    protected void UpdateComponentsForArchetypes(Dictionary<System.Type, Func<Archetype.IComponent, Archetype.IComponent>> updateComponentsByType, params Archetype[] archetypes)
-      => _updateComponentsForArchetypes(Universe, updateComponentsByType, archetypes);
+    protected void UpdateComponentsForArchetypes(Dictionary<string, Archetype.IComponent> updateComponentsByType, params Archetype[] archetypes)
+      => _updateComponentsForArchetypes(
+        Universe,
+        updateComponentsByType
+          .ToDictionary(e => e.Key, e => new Func<Archetype.IComponent, Archetype.IComponent>(_ => e.Value)),
+        archetypes
+      );
+
+    /// <summary>
+    /// Update the existing component from the given archetypes.
+    /// </summary>
+    protected void UpdateComponentsForArchetypes(Dictionary<string, Func<Archetype.IComponent, Archetype.IComponent>> updateComponentsByKey, params Archetype[] archetypes)
+      => _updateComponentsForArchetypes(Universe, updateComponentsByKey, archetypes);
 
     /// <summary>
     /// Update or add the given component from the given archetypes.
     /// </summary>
     protected void UpdateOrAddComponentsForArchetypes(IEnumerable<Archetype> archetypes, params Archetype.IComponent[] components)
       => _updateOrAddComponentsForArchetypes(Universe, archetypes, components);
+
+    /// <summary>
+    /// Update or add the given component from the given archetypes.
+    /// </summary>
+    protected void UpdateOrAddComponentsForArchetypes(Dictionary<string, Func<Archetype.IComponent, Archetype.IComponent>> updateComponentsByKey, params Archetype[] archetypes)
+      => _updateOrAddComponentsForArchetypes(Universe, updateComponentsByKey: updateComponentsByKey, archetypes);
 
     internal static void _updateOrAddComponentsForArchetypes(Universe universe, IEnumerable<Archetype> archetypes, params Archetype.IComponent[] components) {
       if (universe.Loader.IsFinished) {
@@ -196,15 +206,30 @@ namespace Meep.Tech.XBam.Configuration {
       ));
     }
 
-    internal static void _updateComponentsForArchetypes(Universe universe, Dictionary<System.Type, Func<Archetype.IComponent, Archetype.IComponent>> updateComponentsByType, params Archetype[] archetypes) {
+    internal static void _updateOrAddComponentsForArchetypes(Universe universe, Dictionary<string, Func<Archetype.IComponent?, Archetype.IComponent>> updateComponentsByKey, params Archetype[] archetypes) {
       if (universe.Loader.IsFinished) {
         throw new AccessViolationException($"Cannot Modify Archetype Components After Loader is Complete");
       }
 
-      updateComponentsByType.ForEach(e => {
-        var (componentType, componentUpdater) = e;
+      updateComponentsByKey.ForEach(e => {
+        var (componentKey, componentUpdater) = e;
         archetypes.ForEach(archetype => {
-          if (archetype.AllowExternalComponentConfiguration && archetype.TryToGetComponent(componentType, out var component)) {
+          if (archetype.AllowExternalComponentConfiguration) {
+            archetype.UpdateComponent(componentUpdater(archetype.TryToGetComponent(componentKey, out var found) ? found : null));
+          }
+        });
+      });
+    }
+
+    internal static void _updateComponentsForArchetypes(Universe universe, Dictionary<string, Func<Archetype.IComponent, Archetype.IComponent>> updateComponentsByKey, params Archetype[] archetypes) {
+      if (universe.Loader.IsFinished) {
+        throw new AccessViolationException($"Cannot Modify Archetype Components After Loader is Complete");
+      }
+
+      updateComponentsByKey.ForEach(e => {
+        var (componentKey, componentUpdater) = e;
+        archetypes.ForEach(archetype => {
+          if (archetype.AllowExternalComponentConfiguration && archetype.TryToGetComponent(componentKey, out var component)) {
             archetype.UpdateComponent(componentUpdater(component));
           }
         });

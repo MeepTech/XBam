@@ -11,11 +11,17 @@ namespace Meep.Tech.XBam {
     /// Is used to automatically generate an archetype for every member of a given enumeration.
     /// </summary>
     public interface ISplayed {
+
+      /// <summary>
+      /// Used to construct splayed archetypes
+      /// </summary>
+      public delegate Archetype Constructor(Enumeration @enum, Universe universe);
+
       // TODO: these can't be static to work correctly with universes.
-      internal static HashSet<Func<Enumeration, Archetype>> _splayedInterfaceTypesThatAllowLazyInitializations
+      internal static HashSet<Constructor> _splayedInterfaceTypesThatAllowLazyInitializations
         = new();
       // TODO: these can't be static to work correctly with universes.
-      internal static Dictionary<System.Type, Dictionary<System.Type, Dictionary<System.Type, Func<Enumeration, Archetype>>>> _splayedArchetypeCtorsByEnumBaseTypeAndEnumTypeAndSplayType
+      internal static Dictionary<System.Type, Dictionary<System.Type, Dictionary<System.Type, Constructor>>> _splayedArchetypeCtorsByEnumBaseTypeAndEnumTypeAndSplayType
         = new();
       // TODO: these can't be static to work correctly with universes.
       internal static Dictionary<System.Type, HashSet<Enumeration>> _completedEnumsByInterfaceBase

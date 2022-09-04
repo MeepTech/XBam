@@ -298,7 +298,18 @@ namespace Meep.Tech.XBam {
       /// <summary>
       /// Update the existing component from the given archetypes.
       /// </summary>
-      protected void UpdateComponentsForArchetypes(Dictionary<System.Type, Func<Archetype.IComponent, Archetype.IComponent>> updateComponentsByType, params Archetype[] archetypes)
+      protected void UpdateComponentsForArchetypes(Dictionary<string, Archetype.IComponent> updateComponentsByType, params Archetype[] archetypes)
+        => Modifications._updateComponentsForArchetypes(
+          Universe, 
+          updateComponentsByType
+            .ToDictionary(e => e.Key, e => new Func<Archetype.IComponent, Archetype.IComponent>(_ => e.Value)),
+          archetypes
+        );
+
+      /// <summary>
+      /// Update the existing component from the given archetypes.
+      /// </summary>
+      protected void UpdateComponentsForArchetypes(Dictionary<string, Func<Archetype.IComponent, Archetype.IComponent>> updateComponentsByType, params Archetype[] archetypes)
         => Modifications._updateComponentsForArchetypes(Universe, updateComponentsByType, archetypes);
 
       /// <summary>
@@ -306,6 +317,12 @@ namespace Meep.Tech.XBam {
       /// </summary>
       protected void UpdateOrAddComponentsForArchetypes(IEnumerable<Archetype> archetypes, params Archetype.IComponent[] components)
         => Modifications._updateOrAddComponentsForArchetypes(Universe, archetypes, components);
+
+      /// <summary>
+      /// Update or add the given component from the given archetypes.
+      /// </summary>
+      protected void UpdateOrAddComponentsForArchetypes(Dictionary<string, Func<Archetype.IComponent, Archetype.IComponent>> updateComponentsByKey, params Archetype[] archetypes)
+        => Modifications._updateOrAddComponentsForArchetypes(Universe, updateComponentsByKey: updateComponentsByKey, archetypes);
 
       /// <summary>
       /// Update the existing component from the given archetypes.

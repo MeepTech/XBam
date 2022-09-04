@@ -762,12 +762,15 @@ namespace Meep.Tech.XBam.Configuration {
         dummy = FormatterServices.GetUninitializedObject(systemType);
       }
 
+      var field = systemType.GetField("<Universe>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
+      field.SetValue(dummy, Universe);
+
       foreach (var splayType in systemType.GetAllInheritedGenericTypes(typeof(Archetype.ISplayed<,>))) {
         if (splayType.GetGenericArguments().Last() == systemType) {
           System.Type enumType = splayType.GetGenericArguments()[0];
           System.Type enumBaseType = enumType.GetFirstInheritedGenericTypeParameters(typeof(Enumeration<>)).First();
 
-          Func<Enumeration, Archetype> getMethod;
+          Archetype.ISplayed.Constructor getMethod;
           if ((getMethod = ISplayed._splayedArchetypeCtorsByEnumBaseTypeAndEnumTypeAndSplayType.TryToGet(enumBaseType)?.TryToGet(enumType)?.TryToGet(splayType)) is null) {
             getMethod = _getSplayerArchetypeCtor(dummy, splayType, genericTestTypeArguments);
             _prepareSplayedArchetype(splayType, getMethod, enumType, enumBaseType);
@@ -778,7 +781,7 @@ namespace Meep.Tech.XBam.Configuration {
       }
     }
 
-    static Func<Enumeration, Archetype> _getSplayerArchetypeCtor(object dummy, Type splayType, System.Type[] genericTestTypes = null) {
+    static Archetype.ISplayed.Constructor _getSplayerArchetypeCtor(object dummy, Type splayType, System.Type[] genericTestTypes = null) {
       System.Type constructedSplayedType = splayType;
 
       if (genericTestTypes is not null) {
@@ -792,11 +795,14 @@ namespace Meep.Tech.XBam.Configuration {
       MethodInfo registerMethodInfo
         = constructedSplayedType.GetMethod("_registerSubArchetype", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
 
-      Func<Enumeration, Archetype> getMethod = new(@enum => {
-        var archetype = (Archetype)getMethodInfo.Invoke(dummy, new[] { @enum });
+      Archetype.ISplayed.Constructor getMethod = new((@enum, universe) => {
+        var archetype = (Archetype)getMethodInfo.Invoke(dummy, new object[] { @enum, universe });
+        var field = splayType.GetField("<Universe>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
+        field.SetValue(archetype, universe);
         registerMethodInfo.Invoke(null, new object[] { archetype, @enum });
         return archetype;
       });
+
       return getMethod;
     }
 
@@ -806,7 +812,7 @@ namespace Meep.Tech.XBam.Configuration {
       }
     }
 
-    void _constructSplayedArchetypes(Type splayInterfaceType, System.Type enumType = null, System.Type enumBaseType = null, Func<Enumeration, Archetype> getMethod = null, bool markErrorsAsFailuresAndContinue = false) {
+    void _constructSplayedArchetypes(Type splayInterfaceType, System.Type enumType = null, System.Type enumBaseType = null, Archetype.ISplayed.Constructor getMethod = null, bool markErrorsAsFailuresAndContinue = false) {
       enumType ??= splayInterfaceType.GetGenericArguments()[0];
       enumBaseType ??= enumType.GetFirstInheritedGenericTypeParameters(typeof(Enumeration<>)).First();
 
@@ -836,7 +842,7 @@ namespace Meep.Tech.XBam.Configuration {
         Universe.ExtraContexts.OnLoaderArchetypeInitializationStart(splayInterfaceType.GetGenericArguments()[1], true);
         Archetype newType;
         try {
-          newType = getMethod(@enum);
+          newType = getMethod(@enum, Universe);
         }
         catch (CannotInitializeTypeException e) {
           Universe.ExtraContexts.OnLoaderArchetypeInitializationComplete(false, splayInterfaceType.GetGenericArguments()[1], null, e, true);
@@ -861,7 +867,7 @@ namespace Meep.Tech.XBam.Configuration {
       }
     }
 
-    void _prepareSplayedArchetype(Type splayInterfaceType, Func<Enumeration, Archetype> getMethod, System.Type enumType, System.Type enumBaseType) {
+    void _prepareSplayedArchetype(Type splayInterfaceType, Archetype.ISplayed.Constructor getMethod, System.Type enumType, System.Type enumBaseType) {
       if (Options.AllowRuntimeTypeRegistrations) {
         var allowLazyPropAttribute
           = splayInterfaceType.GetGenericArguments().Last()
@@ -890,7 +896,7 @@ namespace Meep.Tech.XBam.Configuration {
     /// TODO: change this so if we are missing a dependency archetype, then this tries to load that one by name, and then adds +1 to a depth parameter (default 0) on this function.
     /// Maybe this could be done more smoothly by pre-emptively registering all ids?
     /// </summary>
-    Archetype _constructArchetypeFromSystemType(System.Type archetypeSystemType, int depth = 0) {
+    Archetype _constructArchetypeFromSystemType(System.Type archetypeSystemType) {
       // see if we have a partially initialized archetype registered
       Archetype archetype = archetypeSystemType?.TryToGetAsArchetype();
 
@@ -899,8 +905,8 @@ namespace Meep.Tech.XBam.Configuration {
       try {
         if (archetype is null) {
           // Get ctor
-          _getArchetypeConstructorAndArgs(archetypeSystemType, out ConstructorInfo archetypeConstructor, out object[] ctorArgs);
-          archetype = (Archetype)archetypeConstructor.Invoke(ctorArgs);
+          var archetypeConstructor = _getArchetypeConstructorAndArgs(archetypeSystemType, out object[] ctorArgs);
+          archetype = (Archetype)archetypeConstructor.DynamicInvoke(ctorArgs);
         }
 
         // success:
@@ -918,8 +924,9 @@ namespace Meep.Tech.XBam.Configuration {
       return archetype;
     }
 
-    static void _getArchetypeConstructorAndArgs(Type archetypeSystemType, out ConstructorInfo archetypeConstructor, out object[] ctorArgs) {
-      archetypeConstructor = archetypeSystemType.GetConstructor(
+    Func<Identity, Universe, Archetype> _getArchetypeConstructorAndArgs(Type archetypeSystemType, out object[] ctorArgs) {
+      // We first look for a private parameterless ctor, 
+      var archetypeConstructor = archetypeSystemType.GetConstructor(
         BindingFlags.Instance | BindingFlags.NonPublic,
         null,
         new Type[0],
@@ -927,15 +934,41 @@ namespace Meep.Tech.XBam.Configuration {
       );
       ctorArgs = new object[0];
 
-      // We first look for a private parameterless ctor, then for a protected ctor with one argument which inherits from ArchetypeId.
-      if (archetypeConstructor == null) {
+      // then we look for for a protected ctor with one argument which inherits from ArchetypeId,
+      //    or one that also has a second optional Universe argument.
+      if (archetypeConstructor is null) {
         archetypeConstructor = archetypeSystemType.GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-          .Where(ctor => ctor.GetParameters().Count() == 1 && typeof(Archetype.Identity).IsAssignableFrom(ctor.GetParameters()[0].ParameterType)).FirstOrDefault();
-        ctorArgs = new object[] { null };
+          .Where(ctor => (ctor.GetParameters().Count() == 1 || ctor.GetParameters().Count() == 2) && typeof(Archetype.Identity).IsAssignableFrom(ctor.GetParameters()[0].ParameterType)).FirstOrDefault();
 
-        if (archetypeConstructor == null) {
+        if (archetypeConstructor is null) {
           throw new CannotInitializeArchetypeException($"Cannot initialize type: {archetypeSystemType?.FullName ?? "ERRORNULLTYPE"},\n  it does not impliment either:\n\t\t a private or protected parameterless constructor that takes no arguments,\n\t\t or a protected/private ctor that takes one argument that inherits from ArchetypeId that accepts the default of Null for singleton initialization.");
         }
+
+        if (archetypeConstructor.GetParameters().Count() == 2) {
+          ctorArgs = new object[] { null, Universe };
+          return (i, u) => (Archetype)archetypeConstructor.Invoke(new object[] { i, u });
+        } // if we don't have the Universe argument passed in, we need to use a trick to set the universe before the ctor.
+        else {
+          ctorArgs = new object[] { null };
+          return (i, u) => {
+            var archetype = (Archetype)FormatterServices.GetUninitializedObject(archetypeSystemType);
+            var field = archetypeSystemType.GetField("<Universe>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
+            field.SetValue(archetype, u);
+            archetypeConstructor.Invoke(archetype, new object[] { i });
+
+            return archetype;
+          };
+        }
+      } // if we don't have the Universe argument passed in, we need to use a trick to set the universe before the ctor.
+      else {
+        return (i, u) => {
+          var archetype = (Archetype)FormatterServices.GetUninitializedObject(archetypeSystemType);
+          var field = archetypeSystemType.GetField("<Universe>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
+          field.SetValue(archetype, Universe);
+          archetypeConstructor.Invoke(archetype, null);
+
+          return archetype;
+        };
       }
     }
 
