@@ -11,7 +11,7 @@ namespace Meep.Tech.XBam {
   /// Overriding in the object itself without using implicits may not change the logic everywhere that's needed, 
   /// ... only do that if you want to add logic and use the base functionality too.
   /// </summary>
-  public partial interface IReadableComponentStorage {
+  public partial interface IReadableComponentStorage : IResource {
 
     /// <summary>
     /// Internal holder for components data
@@ -222,8 +222,13 @@ namespace Meep.Tech.XBam {
       /// add
       storage.ComponentsByBuilderKey.Add(toAdd.Key, toAdd);
 
-      /// do on add
-      if(toAdd is IComponent.IDoOnAdd doer) {
+      /// set parent if we need to
+      if(toAdd is IModel.IComponent.IKnowMyParentModel child) {
+        child.Container = (IModel.IReadableComponentStorage)storage;
+      }
+
+      /// do on added
+      if (toAdd is IComponent.IDoOnAdd doer) {
         doer.ExecuteWhenAdded(storage);
       }
 
@@ -433,7 +438,7 @@ namespace Meep.Tech.XBam {
     public static TComponent AddNewComponent<TComponent>(this IWriteableComponentStorage storage, IEnumerable<(string, object)> @params)
       where TComponent : XBam.IComponent<TComponent> {
       TComponent toAdd = Components<TComponent>.Factory.Make(@params);
-      if(toAdd is IModel.IComponent.IIsRestrictedToCertainTypes restrictedComponent && storage is IModel storageModel && !restrictedComponent.IsCompatableWith(storageModel)) {
+      if(toAdd is IModel.IComponent.IAmRestrictedToCertainTypes restrictedComponent && storage is IModel storageModel && !restrictedComponent.IsCompatableWith(storageModel)) {
         throw new System.ArgumentException($"Component of type {toAdd.Key} is not compatable with model of type {storage.GetType()}. The model must inherit from {restrictedComponent.RestrictedTo.FullName}.");
       }
 

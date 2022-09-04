@@ -1,54 +1,187 @@
 ﻿using Meep.Tech.Collections.Generic;
-using System;
 using System.Collections.Generic;
 using System.Linq;
+using Meep.Tech.Reflection;
 
 namespace Meep.Tech.XBam {
 
   /// <summary>
   /// Base functionality for cacheable models
+  /// TODO: store this data in an extra-context in the universe.
   /// </summary>
   public interface ICached : IUnique {
-    internal static Dictionary<string, IUnique> _cache
+    /// TODO: store this data in an extra-context in the universe.
+    internal static Dictionary<System.Type, Dictionary<string, IUnique>> _cacheByBaseType
       = new();
+
+    internal System.Type _cachedBaseType 
+      { get;}
 
     /// <summary>
     /// Set an item to the cache
     /// </summary>
-    public static void Set(ICached thingToCache) 
-      => _cache.Add(thingToCache.Id, thingToCache);
+    public static void Set(ICached thingToCache) {
+      if (_cacheByBaseType.TryGetValue(thingToCache._cachedBaseType, out var existingDic)) {
+        existingDic[thingToCache.Id()] = thingToCache;
+      } else {
+        _cacheByBaseType[thingToCache._cachedBaseType]
+          = new() {
+            {thingToCache.Id(), thingToCache}
+          };
+      }
+    }
 
     /// <summary>
     /// Try to load an item fro mthe cache by id.
     /// </summary>
-    public static IUnique TryToGetFromCache(string modelId) 
-      => _cache.TryGetValue(modelId, out IUnique fetchedModel)
-        ? fetchedModel
-        : null;
+    public static IUnique TryToGet(string modelId) {
+      IUnique @return = null;
+      _cacheByBaseType.Values
+        .ForEach(e => 
+          !e.TryGetValue(modelId, out @return));
+
+      return @return;
+    }
 
     /// <summary>
     /// Try to load an item fro mthe cache by id.
     /// </summary>
-    public static bool TryToGetFromCache(string modelId, out IUnique model)
-      => _cache.TryGetValue(modelId, out model);
+    public static IUnique TryToGet(System.Type modelType, string modelId) {
+      Dictionary<string, IUnique> containingDic
+        = _cacheByBaseType.TryToGet(modelType)
+          ?? _cacheByBaseType.TryToGet(modelType.GetModelBaseType())
+          ?? _cacheByBaseType.TryToGet(modelType.GetFirstInheritedGenericTypeParameters(typeof(ICached<>)).First());
+
+      return containingDic?.TryToGet(modelId);
+    }
+
+    /// <summary>
+    /// Try to load an item from the cache by id.
+    /// </summary>
+    public static IUnique TryToGet<TModel>(string modelId)
+      where TModel : ICached 
+        => TryToGet(typeof(TModel), modelId);
+
+    /// <summary>
+    /// Try to load an item fro mthe cache by id.
+    /// </summary>
+    public static bool TryToGet(string modelId, out IUnique model)
+      => (model = TryToGet(modelId)) != null;
+
+    /// <summary>
+    /// Try to load an item fro mthe cache by id.
+    /// </summary>
+    public static bool TryToGet(System.Type modelType, string modelId, out IUnique model)
+      => (model = TryToGet(modelType, modelId)) != null;
+
+    /// <summary>
+    /// Try to load an item fro mthe cache by id.
+    /// </summary>
+    public static bool TryToGet<TModel>(string modelId, out TModel model)
+      where TModel : ICached
+        => TryToGet(typeof(TModel), modelId, out var foundModel) 
+          ? (model = (TModel)foundModel) != null 
+          : (model = default) != null;
 
     /// <summary>
     ///  load an item from the cache by id.
     /// </summary>
-    public static IUnique GetFromCache(string modelId)
-      => _cache[modelId];
+    public static IUnique Get(string modelId) 
+      => TryToGet(modelId) ?? throw new KeyNotFoundException($"No model cached for key: {modelId}");
 
     /// <summary>
-    /// Clear the cached model
+    ///  load an item from the cache by id.
     /// </summary>
-    public static void Clear(string modelId) 
-      => _cache.Remove(modelId);
+    public static IUnique Get(System.Type modelType, string modelId)
+      => TryToGet(modelType, modelId) ?? throw new KeyNotFoundException($"No model of type: {modelType.ToFullHumanReadableNameString()} cached for key: {modelId}");
+
+    /// <summary>
+    ///  load an item from the cache by id.
+    /// </summary>
+    public static TModel Get<TModel>(string modelId)
+      where TModel : ICached
+        => (TModel)TryToGet(typeof(TModel), modelId) ?? throw new KeyNotFoundException($"No model cached for key: {modelId}");
+
+    /// <summary>
+    /// Clear the cached models by id
+    /// </summary>
+    public static bool Clear(string modelId) {
+      var anyRemoved = false;
+      foreach (var e in _cacheByBaseType.Values) {
+        anyRemoved = e.Remove(modelId);
+      }
+
+      return anyRemoved;
+    }
+
+    /// <summary>
+    /// Clear the cached models by id
+    /// </summary>
+    public static bool Clear<TModel>(TModel model)
+      where TModel : ICached
+    {
+      if (_cacheByBaseType.TryGetValue(model._cachedBaseType, out var existingDic)) {
+        return existingDic.Remove(model.Id()); 
+      }
+
+      return false;
+    }
+
+    /// <summary>
+    /// Clear the cached model by id
+    /// </summary>
+    public static bool Clear(System.Type modelType, string modelId) {
+      Dictionary<string, IUnique> containingDic
+        = _cacheByBaseType.TryToGet(modelType)
+          ?? _cacheByBaseType.TryToGet(modelType.GetModelBaseType())
+          ?? _cacheByBaseType.TryToGet(modelType.GetFirstInheritedGenericTypeParameters(typeof(ICached<>)).First());
+
+      return containingDic?.Remove(modelId) ?? false;
+    }
+
+    /// <summary>
+    /// Clear the cached models by id
+    /// </summary>
+    public static bool Clear<TModel>(string modelId)
+      where TModel : class, ICached
+        => Clear(typeof(TModel), modelId);
 
     /// <summary>
     /// Clear all caches fully
     /// </summary>
     public static void ClearAll() 
-      => _cache = new();
+      => _cacheByBaseType = new();
+
+    /// <summary>
+    /// Clear the given cache fully
+    /// </summary>
+    public static void ClearAll(System.Type modelType) {
+      System.Type containingType = null;
+      if (_cacheByBaseType.ContainsKey(modelType)) {
+        containingType = modelType;
+      } else {
+        var key = modelType.GetModelBaseType();
+        if (_cacheByBaseType.ContainsKey(key)) {
+          containingType = key;
+        } else {
+          var typeKey = modelType.GetFirstInheritedGenericTypeParameters(typeof(ICached<>)).First();
+          if (_cacheByBaseType.ContainsKey(typeKey)) {
+            containingType = typeKey;
+          }
+        }
+      }
+
+      if (containingType is not null) {
+        _cacheByBaseType.Remove(containingType);
+      }
+    }
+
+    /// <summary>
+    /// Clear the containing cache of the given type fully
+    /// </summary>
+    public static void ClearAll<TModel>()
+      where TModel : class, ICached<TModel>
+        => _cacheByBaseType.Remove(typeof(TModel));
   }
 
   /// <summary>
@@ -58,54 +191,70 @@ namespace Meep.Tech.XBam {
     where T : class, ICached<T>
   {
 
+    System.Type ICached._cachedBaseType
+      => _cachedBaseType;
+
+    internal static new System.Type _cachedBaseType
+      => typeof(T);
+
     /// <summary>
     /// Try to load an item fro mthe cache by id.
     /// </summary>
-    public static new T TryToGetFromCache(string modelId) {
-      IUnique fetched = null;
-      try { 
-        return (fetched = ICached.TryToGetFromCache(modelId)) as T; 
-      } catch (InvalidCastException e) {
-        throw new InvalidCastException($"Fetched Model From Cache with ID {modelId} is likely not of type {typeof(T).FullName}. Actual type: {fetched?.GetType().FullName ?? "NULL"}", e);
-      };
+    public static new T TryToGet(string modelId)
+      => (T)_cacheByBaseType.TryToGet(_cachedBaseType)?.TryToGet(modelId);
+
+    /// <summary>
+    /// Try to load an item fro mthe cache by id.
+    /// </summary>
+    public static bool TryToGet(string modelId, out T model) {
+      if (_cacheByBaseType.TryGetValue(_cachedBaseType, out var values)) {
+        if (values.TryGetValue(modelId, out var found)) {
+          model = (T)found;
+          return true;
+        }
+      }
+
+      model = default;
+      return false;
     }
 
     /// <summary>
     /// Load an item from the cache by id.
     /// </summary>
-    public new static T GetFromCache(string modelId) 
-      => (T)ICached.GetFromCache(modelId);
-
-    /// <summary>
-    /// Try to load an item from the cache by id
-    /// </summary>
-    public static bool TryToGetFromCache(string modelId, out T found)
-      => (found = TryToGetFromCache(modelId)) != null;
+    public new static T Get(string modelId)
+      => (T)_cacheByBaseType[_cachedBaseType][modelId];
 
     /// <summary>
     /// Cache an item of the given type.
     /// </summary>
-    public static void Set(T thingToCache) 
-      => _cache[thingToCache.Id] = thingToCache;
+    public static void Set(T thingToCache) {
+      if (_cacheByBaseType.TryGetValue(_cachedBaseType, out var existingDic)) {
+        existingDic[thingToCache.Id()] = thingToCache;
+      } else {
+        _cacheByBaseType[_cachedBaseType]
+          = new() {
+            {thingToCache.Id(), thingToCache }
+          };
+      }
+    }
 
     /// <summary>
     /// Clear the cached model of this type
     /// </summary>
-    public new static void Clear(string modelId) {
-      if (_cache.Remove(modelId, out IUnique value)) {
-        if (value is not T) {
-          _cache.Add(modelId, value);
-          throw new InvalidCastException();
-        }
+    public new static bool Clear(string modelId) {
+      if (_cacheByBaseType.TryGetValue(_cachedBaseType, out var existingDic)) {
+        return existingDic.Remove(modelId);
       }
+
+      return false;
     }
 
     /// <summary>
     /// Clear the cache fully of items of this type
     /// </summary>
-    public new static void ClearAll() 
-      => _cache.Values.Where(m => m is T)
-        .ForEach(m => _cache.Remove(m.Id));
+    public new static void ClearAll() {
+      _cacheByBaseType.Remove(_cachedBaseType);
+    }
 
     /// <summary>
     /// Can be used to override IModel.Onfinalized.
@@ -127,7 +276,17 @@ namespace Meep.Tech.XBam {
     /// <returns>The cached model for chaining.</returns>
     public static TModel Cache<TModel>(this TModel model)
       where TModel : class, ICached<TModel> {
-      ICached<TModel>.Set(model);
+        ICached<TModel>.Set(model);
+      return model;
+    }
+
+    /// <summary>
+    /// clear the cache for the current item by it's id.
+    /// </summary>
+    /// <returns>The cached model for chaining.</returns>
+    public static TModel ClearCache<TModel>(this TModel model)
+      where TModel : class, ICached<TModel> {
+        ICached<TModel>.Clear(model.Id());
       return model;
     }
   }

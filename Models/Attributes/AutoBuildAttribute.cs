@@ -14,9 +14,6 @@ namespace Meep.Tech.XBam {
   [AttributeUsage(AttributeTargets.Property, Inherited = true)]
   public class AutoBuildAttribute : Attribute {
 
-    static readonly MethodInfo _genericRequiredGetMethod = typeof(BuilderExtensions).GetMethods().First(m => m.Name == nameof(BuilderExtensions.GetRequired) && m.GetParameters()[1].ParameterType == typeof(string));
-    static readonly MethodInfo _genericTryToGetMethod = typeof(BuilderExtensions).GetMethods().First(m => m.Name == nameof(BuilderExtensions.TryToGet) && m.GetParameters()[1].ParameterType == typeof(string));
-
     /// <summary>
     /// Gets a default value for an auto-built field on a model given the model being built and the builder.
     /// </summary>
@@ -44,10 +41,9 @@ namespace Meep.Tech.XBam {
     /// If this field must not be null before being returned by the auto build step.
     /// </summary>
     public bool NotNull {
-      get;
-      set;
-    } = false;
-    internal bool _checkedForNotNullAttribute;
+      get => _notNull ??= false;
+      set => _notNull = value;
+    } internal bool? _notNull;
 
     /// <summary>
     /// If this field's parameter must be provided to the builder
@@ -210,8 +206,8 @@ namespace Meep.Tech.XBam {
             ? (IModel model, IBuilder builder, PropertyInfo property, AutoBuildAttribute attributeData, bool isRequired) 
               => GetDefaultValue(m, _validateInternalNotPassedIn(b, attributeData.ParameterName ?? p.Name, m), p, attributeData, isRequired)
             : attributeData.IsRequiredAsAParameter
-              ? BuildDefaultGetterForRequiredValueFromBuilder(m, b, p, attributeData)
-              : BuildDefaultGetterFromBuilderOrDefault(m, b, p, attributeData);
+              ? BuildDefaultGetterForRequiredValueFromBuilder(p)
+              : BuildDefaultGetterFromBuilderOrDefault(p);
 
         object value = getter(
           m,
@@ -237,13 +233,10 @@ namespace Meep.Tech.XBam {
           }
         }
 
-        if (!attributeData._checkedForNotNullAttribute) {
-          attributeData.NotNull = attributeData.NotNull
-            || p.GetCustomAttributes()
-              .Where(a => a.GetType().Name == "NotNullAttribute")
-              .Any();
-          attributeData._checkedForNotNullAttribute = true;
-        }
+        attributeData._notNull 
+          ??= p.GetCustomAttributes()
+            .Where(a => a.GetType().Name == "NotNullAttribute")
+            .Any();
 
         if (attributeData.NotNull && value is null) {
           throw new ArgumentNullException(attributeData.ParameterName ?? p.Name);
@@ -375,7 +368,7 @@ namespace Meep.Tech.XBam {
           && builder.Archetype.Id.Universe.Components._archetypeComponentsLinkedToModelComponents
             .Reverse
             .TryGetValue(
-              Components.GetBaseType(component.GetType()),
+              Components.GetComponentBaseType(component.GetType()),
               out linkedArchetypeComponentType
             )
         ) {
@@ -464,35 +457,48 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Used to build the default ValueGetter for non required items.
     /// </summary>
-    public static ValueGetter BuildDefaultGetterFromBuilderOrDefault(IModel model, IBuilder builder, PropertyInfo property, AutoBuildAttribute attributeData, ValueGetter onFailureDefaultOveride = null) {
-      var _tryToGetMethod = _genericTryToGetMethod.MakeGenericMethod(property.PropertyType);
+    public static ValueGetter BuildDefaultGetterFromBuilderOrDefault(PropertyInfo property, ValueGetter onFailureDefaultOveride = null, bool allowTypeMismachesForDefaultFallthough = false) 
+      => new((m, b, p, a, _) => {
+        if (b.TryToGet(a.ParameterName ?? p.Name, out var providedValue)) {
+          if (providedValue is null) {
+            return null;
+          } if (property.PropertyType.IsAssignableFrom(providedValue.GetType())) {
+            return providedValue;
+          }
+          else if (providedValue.TryToCastTo(property.PropertyType, out var result)) {
+            return result;
+          }
+          else if (!allowTypeMismachesForDefaultFallthough) {
+            throw new IModel.IBuilder.Param.MissmatchException($"Tried to get param: {a.ParameterName ?? p.Name}, as desired Type: {p.PropertyType.ToFullHumanReadableNameString()}. The provided invalid value has Type {providedValue?.GetType().ToFullHumanReadableNameString() ?? "null"} instead and cannot be cast to the required type.");
+          }
+        }
 
-      // TODO: cache this
-      return new((m, b, p, a, _) => {
-        object[] parameters = new object[] { b, a.ParameterName ?? p.Name, null, default };
-        try {
-          return (bool)_tryToGetMethod.Invoke(null, parameters) 
-            ? parameters[2] 
-            : (onFailureDefaultOveride ?? GetDefaultValue).Invoke(m, b, p, a, false);
-        }
-        catch (TargetInvocationException e) {
-          throw e.InnerException;
-        }
+        return (onFailureDefaultOveride ?? GetDefaultValue).Invoke(m, b, p, a, a.IsRequiredAsAParameter);
       });
-    }
 
     /// <summary>
     /// Used to build the default ValueGetter for required items.
     /// </summary>
-    public static ValueGetter BuildDefaultGetterForRequiredValueFromBuilder(IModel model, IBuilder builder, PropertyInfo property, AutoBuildAttribute attributeData) {
-      var getter = _genericRequiredGetMethod.MakeGenericMethod(property.PropertyType);
+    public static ValueGetter BuildDefaultGetterForRequiredValueFromBuilder(PropertyInfo property) 
+      => (_, b, p, a, _) => { 
+        if (!b.TryGetValue(a.ParameterName ?? p.Name, out var providedValue)) {
+          throw new IModel.IBuilder.Param.MissingException($"Tried to construct a model without the required param: {a.ParameterName ?? p.Name} of type {p.PropertyType.ToFullHumanReadableNameString()} being provided. If this is a test, try adding a default value for the empty model for this required param to the Archetype's DefaultTestParams field.");
+        }
 
-      // TODO: cache this
-      try {
-        return (_,b,p,a,_) => getter.Invoke(null, new object[] { b, a.ParameterName ?? p.Name });
-      } catch(TargetInvocationException e) {
-        throw e.InnerException;
-      }
-    }
+        if (providedValue is null) {
+          return null;
+        }
+
+        if (property.PropertyType.IsAssignableFrom(providedValue.GetType())) {
+          return providedValue;
+        }
+
+        try {
+          return providedValue.CastTo(p.PropertyType);
+        }
+        catch (Exception e) {
+          throw new IModel.IBuilder.Param.MissmatchException($"Tried to get param: {a.ParameterName ?? p.Name}, as desired Type: {p.PropertyType.ToFullHumanReadableNameString()}. The provided invalid value has Type {providedValue?.GetType().ToFullHumanReadableNameString() ?? "null"} instead and cannot be cast to the required type.", e);
+        }
+      };
   }
 }

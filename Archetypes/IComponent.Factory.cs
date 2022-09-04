@@ -89,7 +89,7 @@ namespace Meep.Tech.XBam {
       /// Overrideable model constructor
       /// </summary>
       public Func<Builder, TComponentBase> ComponentCtor {
-        init => ModelConstructor = builder => value((Builder)builder);
+        init => ModelInitializer = builder => value((Builder)builder);
       }
 
       public Factory(

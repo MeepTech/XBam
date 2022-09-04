@@ -58,10 +58,33 @@ namespace Meep.Tech.XBam {
               if(idProp == null) {
                 throw new NotImplementedException($"Types that inherit from IUnique require a serializeable 'id' property. {type.FullName} Does not have one.");
               }
-              baseProps.Add(idJsonProp = CreateProperty(idProp, memberSerialization));
+
+              idJsonProp = CreateProperty(idProp, memberSerialization);
+              baseProps.Add(idJsonProp);
             }
 
             idJsonProp.Order = int.MinValue + 1;
+            baseProps = baseProps.OrderBy(p => p.Order ?? -1).ToList();
+          }
+
+          // add component factory
+          if (typeof(Meep.Tech.XBam.IComponent).IsAssignableFrom(type)) {
+            JsonProperty factoryJsonProp;
+            if ((factoryJsonProp = baseProps.FirstOrDefault(prop => prop.PropertyName == "key")) == null) {
+              PropertyInfo factoryProp = type.GetInterface(nameof(IComponent))
+                .GetProperty(nameof(IComponent.Factory));
+
+              if (factoryJsonProp == null) {
+                throw new NotImplementedException($"Types that inherit from IUnique require a serializeable 'id' property. {type.FullName} Does not have one.");
+              }
+
+              factoryJsonProp = CreateProperty(factoryProp, memberSerialization);
+              baseProps.Add(factoryJsonProp);
+            }
+
+            factoryJsonProp.Order = int.MinValue;
+            factoryJsonProp.PropertyName = "key";
+            baseProps = baseProps.OrderBy(p => p.Order ?? -1).ToList();
           }
 
           return baseProps;

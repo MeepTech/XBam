@@ -10,12 +10,12 @@ namespace Meep.Tech.XBam {
   /// A global collection of arechetypes.
   /// This is what the loader builds.
   /// </summary>
-  public sealed partial class Universe {
+  public sealed partial class Universe : IUniverse {
 
     /// <summary>
     /// All Universes
     /// </summary>
-    public static IReadOnlyDictionary<string, Universe> s
+    public static IReadOnlyDictionary<string, Universe> All
       => _all;
     static OrderedDictionary<string, Universe> _all
       = new();
@@ -103,38 +103,77 @@ namespace Meep.Tech.XBam {
     }
 
     /// <summary>
-    /// Get an extra context item that was assigned to this universe.
+    /// Set an extra context item to this universe.
+    /// It also adds the item to any empty indexes in the inheritance chain for the extra context type's parents.
     /// </summary>
     public void SetExtraContext<TExtraContext>(TExtraContext extraContext)
-      where TExtraContext : ExtraContext 
-    {
-      if(Loader.IsFinished) {
+      where TExtraContext : ExtraContext {
+      if (Loader.IsFinished) {
         throw new Exception($"Must add extra context before the loader for the universe has finished.");
       }
 
-      if (!ExtraContexts._extraContexts.Values.Any(c => c.Id == extraContext.Id)) {
-        extraContext.Universe = this;
-        ExtraContexts._addAllOverrideDelegates(extraContext);
+      extraContext.Universe = this;
+      ExtraContexts._addAllOverrideDelegates(extraContext);
+
+      // add the context to all types in it's inheritance chain that aren't already taken.
+      var currentContextType = typeof(TExtraContext);
+      while (currentContextType is not null && currentContextType != typeof(ExtraContext)) {
+        if (!ExtraContexts._extraContexts.TryAdd(currentContextType, extraContext)) {
+          break;
+        }
+
+        currentContextType = currentContextType.BaseType;
       }
 
-      ExtraContexts._extraContexts[typeof(TExtraContext)] = extraContext;
+      // check for interfaces that implement it too
+      foreach(
+        Type extraTypeInterface 
+          in typeof(TExtraContext)
+            .GetInterfaces()
+            .Where(i => typeof(IExtraUniverseContextType).IsAssignableFrom(i) 
+              && i != typeof(IExtraUniverseContextType))
+      ) {
+        ExtraContexts._extraContexts.TryAdd(extraTypeInterface, extraContext);
+      }
     }
+
+    /// <summary>
+    /// Set a new extracontext of this type to this universe.
+    /// </summary>
+    public void SetExtraContext<TExtraContext>()
+      where TExtraContext : ExtraContext, new()
+        => SetExtraContext<TExtraContext>(new());
 
     /// <summary>
     /// Get an extra context item that was assigned to this universe.
     /// </summary>
     public bool HasExtraContext<TExtraContext>()
-      where TExtraContext : ExtraContext 
+      where TExtraContext : IExtraUniverseContextType
         => ExtraContexts._extraContexts.ContainsKey(typeof(TExtraContext));
 
     /// <summary>
     /// Get an extra context item that was assigned to this universe.
     /// </summary>
+    public bool TryToGetExtraContext<TExtraContext>(out TExtraContext extraContext)
+      where TExtraContext : IExtraUniverseContextType {
+      if (ExtraContexts._extraContexts.TryGetValue(typeof(TExtraContext), out var found)) {
+        extraContext = (TExtraContext)(IExtraUniverseContextType)found;
+        return true;
+      }
+
+      extraContext = default;
+      return false;
+    }
+
+    /// <summary>
+    /// Get an extra context item that was assigned to this universe.
+    /// </summary>
     public TExtraContext GetExtraContext<TExtraContext>()
-      where TExtraContext : ExtraContext {
+      where TExtraContext : IExtraUniverseContextType {
       try {
-        return (TExtraContext)ExtraContexts._extraContexts[typeof(TExtraContext)];
-      } catch (System.Collections.Generic.KeyNotFoundException keyNotFoundE) {
+        return (TExtraContext)(ExtraContexts._extraContexts[typeof(TExtraContext)] as IExtraUniverseContextType);
+      }
+      catch (System.Collections.Generic.KeyNotFoundException keyNotFoundE) {
         throw new KeyNotFoundException($"No extra context of the type {typeof(TExtraContext).FullName} added to this universe. Further ECSBAM configuration may be required.", keyNotFoundE);
       }
     }

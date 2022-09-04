@@ -37,7 +37,7 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Get the base model type of this model type.
     /// </summary>
-    public static System.Type GetBaseType(this System.Type type)
+    public static System.Type GetComponentBaseType(this System.Type type)
       => DefaultUniverse.Components.GetBaseType(type);
   }
 

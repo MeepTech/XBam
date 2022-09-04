@@ -69,11 +69,17 @@ namespace Meep.Tech.XBam {
       /// <inheritdoc/>
       /// </summary>
       Func<XBam.IBuilder, IModel> XBam.IFactory._modelConstructor {
-        get => base.ModelConstructor is null 
-          ? null 
-          : builder => base.ModelConstructor((IBuilder<TModelBase>)builder);
-        set => base.ModelConstructor = 
-          builder => (TModelBase)value(builder);
+        get => ModelInitializer is null
+          ? null
+          : builder => ModelInitializer((IBuilder<TModelBase>)builder);
+        set {
+          if (value is null) {
+            ModelInitializer = null;
+          }
+          else {
+            ModelInitializer = b => (TModelBase)value.Invoke(b);
+          }
+        }
       }
 
       /// <summary>
@@ -99,7 +105,7 @@ namespace Meep.Tech.XBam {
       /// Overrideable model constructor
       /// </summary>
       public Func<Builder, TModelBase> ModelCtor {
-        init => ModelConstructor = builder => value((Builder)builder);
+        init => ModelInitializer = builder => value((Builder)builder);
       }
 
       /// <summary>

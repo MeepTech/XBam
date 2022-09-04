@@ -1,6 +1,8 @@
 ﻿using Meep.Tech.Reflection;
+using Meep.Tech.XBam.Configuration;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Meep.Tech.XBam {
 
@@ -24,6 +26,27 @@ namespace Meep.Tech.XBam {
       /// </summary>
       internal protected Dictionary<string, object> __parameters
         { set; }
+
+      internal protected static void InitalizeComponent(ref IComponent component, IBuilder @this, Archetype archetype = null, Universe universe = null) {
+        universe = @this?.Universe ?? universe;
+        archetype = @this?.Archetype ?? archetype;
+
+        component ??= (IComponent)((XBam.IFactory)(@this?.Archetype ?? archetype))._modelConstructor(@this);
+        component = (IComponent)component.OnInitialized((@this?.Archetype ?? archetype), (@this?.Universe ?? universe), @this);
+
+        if (component is IUnique unique) {
+          component = (IComponent)unique.InitializeId(@this.TryToGet<string>(nameof(IUnique.Id)));
+        }
+
+        if (component is IComponent.IKnowMyParentModel child) {
+          child.Container = (IReadableComponentStorage)@this.Parent;
+        }
+
+        component = (IComponent)(@this?.Archetype ?? archetype).ConfigureModel(@this, component);
+
+        component = (IComponent)component.OnFinalized(@this);
+        component = (IComponent)(@this?.Archetype ?? archetype).FinalizeModel(@this, component);
+      }
     }
   }
 
@@ -171,16 +194,20 @@ namespace Meep.Tech.XBam {
 
       ///<summary><inheritdoc/></summary>
       public TComponentBase Make() {
-        TComponentBase component = (TComponentBase)((XBam.IFactory)Archetype)._modelConstructor(this);
-        component.Universe = Universe;
+        IComponent producedComponent = default;
+        IBuilder.InitalizeComponent(ref producedComponent, this);
 
-        component = (TComponentBase)(component as IModel).OnInitialized(Archetype, Universe,  this);
-        component = (TComponentBase)Archetype.ConfigureModel(this, component);
+        // loging
+        producedComponent.TryToLog(
+          Configuration.ModelLog.Entry.ActionType.Built,
+          "null",
+          this,
+          new Dictionary<string, object>() {
+            { ModelLog.Entry.MetadataField.AutoBuilderUsed.Key, Archetype._modelAutoBuilderSteps?.Any() ?? false }
+          }
+        );
 
-        component = (TComponentBase)(component as IModel).OnFinalized(this);
-        component = (TComponentBase)Archetype.FinalizeModel(this, component);
-
-        return component;
+        return (TComponentBase)producedComponent;
       }
     }
   }

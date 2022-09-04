@@ -1,7 +1,10 @@
 ﻿using KellermanSoftware.CompareNetObjects;
+using Meep.Tech.XBam.Configuration;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
+using System.Runtime.Serialization;
 
 namespace Meep.Tech.XBam {
 
@@ -13,6 +16,23 @@ namespace Meep.Tech.XBam {
   public abstract partial class Model
     : IModel 
   {
+
+    /// <summary>
+    /// The universe this model was made inside of
+    /// </summary>
+    [JsonIgnore]
+    public Universe Universe {
+      get;
+      internal set;
+    } Universe IModel.Universe { 
+      get => Universe;
+      set => Universe = value; 
+    }
+
+    IFactory IModel.Factory 
+      => throw new NotImplementedException();
+
+    #region Json
 
     /// <summary>
     /// Deserialize a model from json as a Model
@@ -41,37 +61,115 @@ namespace Meep.Tech.XBam {
       => (TModel)IModel.FromJson(jObject, deserializeToTypeOverride, universeOverride, withConfigurationParameters);
 
     /// <summary>
-    /// The universe this model was made inside of
+    /// Deserialize a model from json as a Model
     /// </summary>
-    [JsonIgnore]
-    public Universe Universe {
-      get;
-      internal set;
-    } Universe IModel.Universe { 
-      get => Universe;
-      set => Universe = value; 
-    }
+    /// <param name="deserializeToTypeOverride">You can use this to try to make JsonSerialize 
+    ///    use a different Type's info for deserialization than the default returned from GetModelTypeProducedBy</param>
+    public static Model FromJson(
+       string json,
+       Type deserializeToTypeOverride = null,
+       Universe universeOverride = null,
+       params (string key, object value)[] withConfigurationParameters
+     ) => (Model)IModel.FromJson(json, deserializeToTypeOverride, universeOverride, withConfigurationParameters);
 
-    IFactory IModel.Factory 
-      => throw new NotImplementedException();
+    /// <summary>
+    /// Deserialize a model from json as a Model
+    /// </summary>
+    /// <typeparam name="TModel">The type to cast the produced model to. Not the same as deserializeToTypeOverride</typeparam>
+    /// <param name="deserializeToTypeOverride">You can use this to try to make JsonSerialize 
+    ///    use a different Type's info for deserialization than the default returned from GetModelTypeProducedBy</param>
+    public static TModel FromJsonAs<TModel>(
+       string json,
+      Type deserializeToTypeOverride = null,
+      Universe universeOverride = null,
+      params (string key, object value)[] withConfigurationParameters
+     ) where TModel : Model
+      => (TModel)IModel.FromJson(json, deserializeToTypeOverride, universeOverride, withConfigurationParameters);
+
+    #endregion
+
+    #region Equality
 
     ///<summary><inheritdoc/></summary>
-    public override bool Equals(object obj) {
+    public override bool Equals(object obj)
+      => Equals(obj, out _);
+
+    ///<summary><inheritdoc/></summary>
+    public virtual bool Equals(object obj, out ComparisonResult? result) {
       // must be this type or a child
-      if(obj is not null && !GetType().IsAssignableFrom(obj.GetType())) {
+      if (obj is not null && !GetType().IsAssignableFrom(obj.GetType())) {
+        result = null;
+
         return false;
       }
 
       // unique are easy
-      if(obj is IUnique other && this is IUnique current)
-        return other.Id == current.Id;
-      else {
+      if (obj is IUnique other && this is IUnique current) {
+        result = null;
+
+        return other.Id() == current.Id();
+      } else {
         CompareLogic compareLogic = Universe.Models.GetCompareLogic(GetType());
-        ComparisonResult result = compareLogic.Compare(this, obj as IModel);
+        result = compareLogic.Compare(this, obj as IModel);
 
         return result.AreEqual;
       }
     }
+
+    #endregion
+
+    #region Serialization and Deserialization
+
+    string _original;
+    bool _isSerializing;
+    Configuration.ModelLog _logger;
+    [OnDeserializing]
+    void _onDeserializing(StreamingContext context) {
+      if (_logger is not null || this.CanLog(out _logger)) {
+        _original = this.ToJson().ToString();
+      }
+    }
+
+    [OnSerializing]
+    void _onSerializing(StreamingContext context) {
+      if (!_isSerializing) {
+        _isSerializing = true;
+        if (_logger is not null || this.CanLog(out _logger)) {
+          _original = this.ToJson().ToString();
+        }
+      }
+    }
+
+    [OnDeserialized]
+    void _onDeserialized(StreamingContext context) {
+      if (_logger is not null) {
+        ((IReadableComponentStorage)this).Log(
+          Configuration.ModelLog.Entry.ActionType.Deserialized,
+          _original,
+          metadata: new Dictionary<string, object> {
+            { Configuration.ModelLog.Entry.MetadataField.FromJson.Key, "json".Equals(context.Context) }
+          }
+        );
+        _original = null;
+      }
+    }
+
+    [OnSerialized]
+    void _onSerialized(StreamingContext context) {
+      if (!_isSerializing && _logger is not null) {
+        ((IReadableComponentStorage)this).Log(
+          Configuration.ModelLog.Entry.ActionType.Serialized,
+          _original,
+          metadata: new Dictionary<string, object> {
+            { Configuration.ModelLog.Entry.MetadataField.FromJson.Key, "json".Equals(context.Context) }
+          }
+        );
+        _original = null;
+        _isSerializing = false;
+      }
+    }
+
+    #endregion
   }
 
   /// <summary>
@@ -92,6 +190,8 @@ namespace Meep.Tech.XBam {
       private set;
     } IFactory IModel.Factory 
       => Factory;
+
+    #region Json
 
     /// <summary>
     /// Deserialize a model from json as a TModelBase
@@ -118,6 +218,10 @@ namespace Meep.Tech.XBam {
       params (string key, object value)[] withConfigurationParameters
      ) where TModel : TModelBase
       => (TModel)IModel.FromJson(jObject, deserializeToTypeOverride, universeOverride, withConfigurationParameters);
+
+    #endregion 
+
+    #region Initialization
 
     /// <summary>
     /// Can be used to initialize a model after the ctor call in xbam
@@ -141,6 +245,8 @@ namespace Meep.Tech.XBam {
     IModel IModel.OnFinalized(IBuilder builder) {
       return OnFinalized((IBuilder<TModelBase>)builder);
     }
+
+    #endregion
   }
 
   /// <summary>
@@ -152,6 +258,27 @@ namespace Meep.Tech.XBam {
     where TModelBase : IModel<TModelBase, TArchetypeBase> 
     where TArchetypeBase : Archetype<TModelBase, TArchetypeBase>
   {
+
+    /// <summary>
+    /// Default collection of archetypes for this model type based on the Default Univese
+    /// </summary>
+    public static Archetype<TModelBase, TArchetypeBase>.Collection Types
+      => (Archetype<TModelBase, TArchetypeBase>.Collection)
+        Archetypes.DefaultUniverse.Archetypes.GetCollection(typeof(TArchetypeBase));
+
+    /// <summary>
+    /// The model's archetype:
+    /// </summary>
+    [ArchetypeProperty]
+    public TArchetypeBase Archetype {
+      get;
+      private set;
+    } TArchetypeBase IModel<TModelBase, TArchetypeBase>.Archetype { 
+      get => Archetype; 
+      set => Archetype = value; 
+    }
+
+    #region Json
 
     /// <summary>
     /// Deserialize a model from json as a TModelBase
@@ -180,23 +307,34 @@ namespace Meep.Tech.XBam {
       => (TModel)IModel.FromJson(jObject, deserializeToTypeOverride, universeOverride, withConfigurationParameters);
 
     /// <summary>
-    /// Default collection of archetypes for this model type based on the Default Univese
+    /// Deserialize a model from json as a TModelBase
     /// </summary>
-    public static Archetype<TModelBase, TArchetypeBase>.Collection Types
-      => (Archetype<TModelBase, TArchetypeBase>.Collection)
-        Archetypes.DefaultUniverse.Archetypes.GetCollection(typeof(TArchetypeBase));
+    /// <param name="deserializeToTypeOverride">You can use this to try to make JsonSerialize 
+    ///    use a different Type's info for deserialization than the default returned from GetModelTypeProducedBy</param>
+    public new static TModelBase FromJson(
+       string json,
+       Type deserializeToTypeOverride = null,
+       Universe universeOverride = null,
+       params (string key, object value)[] withConfigurationParameters
+     ) => (TModelBase)IModel.FromJson(json, deserializeToTypeOverride, universeOverride, withConfigurationParameters);
 
     /// <summary>
-    /// The model's archetype:
+    /// Deserialize a model from json as a TModelBase
     /// </summary>
-    [ArchetypeProperty]
-    public TArchetypeBase Archetype {
-      get;
-      private set;
-    } TArchetypeBase IModel<TModelBase, TArchetypeBase>.Archetype { 
-      get => Archetype; 
-      set => Archetype = value; 
-    }
+    /// <typeparam name="TModel">The type to cast the produced model to. Not the same as deserializeToTypeOverride</typeparam>
+    /// <param name="deserializeToTypeOverride">You can use this to try to make JsonSerialize 
+    ///    use a different Type's info for deserialization than the default returned from GetModelTypeProducedBy</param>
+    public new static TModel FromJsonAs<TModel>(
+       string json,
+       Type deserializeToTypeOverride = null,
+       Universe universeOverride = null,
+       params (string key, object value)[] withConfigurationParameters
+     ) where TModel : TModelBase
+      => (TModel)IModel.FromJson(json, deserializeToTypeOverride, universeOverride, withConfigurationParameters);
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>
     /// Can be used to initialize a model after the ctor call in xbam
@@ -211,23 +349,6 @@ namespace Meep.Tech.XBam {
       return OnInitialized((IBuilder<TModelBase>)builder);
     }
 
-    /// <summary>
-    /// Make shortcut.
-    /// </summary>
-    public static TDesiredModel Make<TDesiredModel>(TArchetypeBase type, Action<IModel.IBuilder> builderConfiguration = null)
-      where TDesiredModel : TModelBase
-        => type.Make<TDesiredModel>(builder => { 
-          builderConfiguration(builder); 
-          return builder;
-        });
-
-    /// <summary>
-    /// Make shortcut.
-    /// </summary>
-    public static TModelBase Make(TArchetypeBase type, Action<IModel.IBuilder> builderConfiguration = null)
-        => type.Make<TModelBase>(builder => { 
-          builderConfiguration(builder); 
-          return builder;
-        });
+    #endregion
   }
 }

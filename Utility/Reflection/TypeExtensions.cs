@@ -30,10 +30,9 @@ namespace Meep.Tech.Reflection {
     /// <summary>
     /// Check if a type is a numeric value type.
     /// </summary>
-    public static bool IsNumeric(this Type type) {
-      return _numericTypes.Contains(type) ||
-             _numericTypes.Contains(Nullable.GetUnderlyingType(type));
-    }
+    public static bool IsNumeric(this Type type) 
+      => _numericTypes.Contains(type) ||
+        _numericTypes.Contains(Nullable.GetUnderlyingType(type));
 
     static readonly HashSet<Type> _stringTypes = new(){
       typeof(string),
@@ -45,10 +44,9 @@ namespace Meep.Tech.Reflection {
     /// Check if a type is a basic text type.
     /// string, char, or char[]
     /// </summary>
-    public static bool IsText(this Type type) {
-      return _stringTypes.Contains(type) ||
-             _stringTypes.Contains(Nullable.GetUnderlyingType(type));
-    }
+    public static bool IsText(this Type type) 
+      => _stringTypes.Contains(type) ||
+        _stringTypes.Contains(Nullable.GetUnderlyingType(type));
 
     #region Inheritance Testing
 
@@ -150,10 +148,63 @@ namespace Meep.Tech.Reflection {
 
     #region Casting
 
-    static readonly Dictionary<Tuple<Type, Type>, Func<object, object>> CastCache
-    = new Dictionary<Tuple<Type, Type>, Func<object, object>>();
+    static readonly Dictionary<Tuple<Type, Type>, Func<object, object>> _castCache
+      = new();
 
-    static Func<object, object> MakeCastDelegate(Type originalType, Type resultingType) {
+    /// <summary>
+    /// Tries to cast an object to a given type. First time is expensive
+    /// </summary>
+    public static TTarget CastTo<TTarget>(this object @object)
+      => (TTarget)@object.CastTo(typeof(TTarget));
+
+    /// <summary>
+    /// Tries to cast an object to a given type. First time is expensive
+    /// </summary>
+    public static object CastTo(this object @object, Type type) {
+      Func<object, object> castDelegate = _getCastDelegate(@object.GetType(), type);
+      try {
+        return castDelegate.Invoke(@object);
+      }
+      catch (InvalidCastException e) {
+        var key = new Tuple<Type, Type>(@object.GetType(), type);
+        _castCache[key] = null;
+
+        throw e;
+      }
+    }
+
+    /// <summary>
+    /// Tries to cast an object to a given type. First time is expensive
+    /// </summary>
+    public static bool TryToCastTo<TTarget>(this object @object, out TTarget result) {
+      if (@object.TryToCastTo(typeof(TTarget), out var resultObject)) {
+        result = (TTarget)resultObject;
+        return true;
+      }
+
+      result = default;
+      return false;
+    }
+
+    /// <summary>
+    /// Tries to cast an object to a given type. First time is expensive
+    /// </summary>
+    public static bool TryToCastTo(this object @object, Type type, out object result) {
+      if(_tryToGetCastDelegate(@object.GetType(), type, out var @delegate)) {
+        try {
+          result = @delegate.Invoke(@object);
+          return true;
+        } catch(InvalidCastException) {
+          var key = new Tuple<Type, Type>(@object.GetType(), type);
+          _castCache[key] = null;
+        }
+      }
+
+      result = default;
+      return false;
+    }
+
+    static Func<object, object> _buildCastDelegate(Type originalType, Type resultingType) {
       var inputObject = Expression.Parameter(typeof(object));
       return Expression.Lambda<Func<object, object>>(
           Expression.Convert(
@@ -167,34 +218,38 @@ namespace Meep.Tech.Reflection {
         ).Compile();
     }
 
-    static Func<object, object> GetCastDelegate(Type from, Type to) {
-      lock(CastCache) {
+    static Func<object, object> _getCastDelegate(Type from, Type to) {
+      lock (_castCache) {
         var key = new Tuple<Type, Type>(from, to);
-        Func<object, object> cast_delegate;
-        if(!CastCache.TryGetValue(key, out cast_delegate)) {
+        if (!_castCache.TryGetValue(key, out Func<object, object> cast_delegate)) {
           try {
-            cast_delegate = MakeCastDelegate(from, to);
+            cast_delegate = _buildCastDelegate(from, to);
           }
-          catch(Exception e) {
-            throw new NotImplementedException($"No cast found from:\n\t{from.FullName},\nto:\n\t{to.FullName}.\n\n{e}");
+          catch (Exception e) {
+            throw new NotImplementedException($"No cast found from:\n\t{from.FullName},\nto:\n\t{to.FullName}.\n\n{e}", e);
           }
-          CastCache.Add(key, cast_delegate);
+          _castCache.Add(key, cast_delegate);
         }
-        return cast_delegate;
+
+        return cast_delegate ?? throw new NotImplementedException($"No cast found from:\n\t{from.FullName},\nto:\n\t{to.FullName}.");
       }
     }
 
-    /// <summary>
-    /// Tries to cast an object to a given type. First time is expensive
-    /// </summary>
-    public static TTarget CastTo<TTarget>(this object @object)
-      => (TTarget)@object.CastTo(typeof(TTarget));
+    static bool _tryToGetCastDelegate(Type from, Type to, out Func<object, object>? cast_delegate) {
+      lock (_castCache) {
+        var key = new Tuple<Type, Type>(from, to);
+        if (!_castCache.TryGetValue(key, out cast_delegate)) {
+          try {
+            cast_delegate = _buildCastDelegate(from, to);
+          }
+          catch (Exception e) {
+            cast_delegate = null;
+          }
+          _castCache.Add(key, cast_delegate);
+        }
 
-    /// <summary>
-    /// Tries to cast an object to a given type. First time is expensive
-    /// </summary>
-    public static object CastTo(this object @object, Type type) {
-      return GetCastDelegate(@object.GetType(), type).Invoke(@object);
+        return cast_delegate is not null;
+      }
     }
 
     #endregion

@@ -13,31 +13,35 @@ namespace Meep.Tech.XBam {
       /// Settings for the Model Serializer
       /// </summary>
       public class Settings {
-        internal Universe _universe;
+
+        /// <summary>
+        /// The Universe these settings belong to.
+        /// </summary>
+        public Universe Universe {
+          get;
+          internal set;
+        }
 
         /// <summary>
         /// Helper function to set the default json serializer settings for models.
         /// </summary>
-        public Func<DefaultContractResolver, IEnumerable<Newtonsoft.Json.JsonConverter>, JsonSerializerSettings> ConstructJsonSerializerSettings {
+        public Action<Settings, JsonSerializerSettings> ConfigureJsonSerializerSettings {
           get;
           set;
-        } = DefaultJsonSerializerSettingsConfigurationLogic;
+        } = (options, settings) => {
+          settings.ContractResolver = options.ConfigureJsonContractResolver(options.Universe);
+          settings.Formatting = Formatting.Indented;
+          settings.Converters = options.DefaultJsonCoverters.ToList();
+          settings.Context = new System.Runtime.Serialization.StreamingContext(System.Runtime.Serialization.StreamingContextStates.Other, "json");
+        };
 
         /// <summary>
-        /// Helper function to configure the json serialization settings for models after it's constructed.
+        /// Configuration for the default contract resolver.
         /// </summary>
-        public Action<JsonSerializerSettings> ConfigureJsonSerializerSettings {
+        public Func<Universe, DefaultContractResolver> ConfigureJsonContractResolver {
           get;
           set;
-        } = e => { };
-
-        /// <summary>
-        /// Compiled model serializer from the settings config function
-        /// </summary>
-        public JsonSerializerSettings JsonSerializerSettings {
-          get => _modelJsonSerializerSettings
-            ??= BuildJsonSerializationSettings();
-        } JsonSerializerSettings _modelJsonSerializerSettings;
+        } = universe => new DefaultContractResolver(universe);
 
         /// <summary>
         /// The default json converters to include
@@ -81,41 +85,14 @@ namespace Meep.Tech.XBam {
         /// <summary>
         /// The default way models are copied
         /// </summary>
-        public Func<IModel, IModel> DefaultCopyMethod {
+        public Func<IModel, IModel> ModelCopyMethod {
           get;
           set;
-        } = model => IModel.FromJson(model.ToJson()); 
+        } = model => IModel.FromJson(model.ToJson());
 
-        /// <summary>
-        /// Can be used to build and configure copies of the built in json serializer settings.
-        /// </summary>
-        public JsonSerializerSettings BuildJsonSerializationSettings(Action<JsonSerializerSettings> configure = null, Func<DefaultContractResolver, IEnumerable<Newtonsoft.Json.JsonConverter>, JsonSerializerSettings> construct = null) {
-          var settings = (construct ?? ConstructJsonSerializerSettings).Invoke(
-            new DefaultContractResolver(_universe),
-            DefaultJsonCoverters
-          );
-          (configure ?? ConfigureJsonSerializerSettings).Invoke(settings);
-
-          return settings;
+        public Settings(Universe universe = null) {
+          Universe = universe ?? Universe.Default;
         }
-
-        /// <summary>
-        /// The default logic for ConfigureJsonSerializerSettings
-        /// </summary>
-        public static JsonSerializerSettings DefaultJsonSerializerSettingsConfigurationLogic(DefaultContractResolver contractResolver, IEnumerable<Newtonsoft.Json.JsonConverter> jsonConverters)
-          => new() {
-            ContractResolver = contractResolver,
-            Formatting = Formatting.Indented,
-            Converters = jsonConverters.ToList()
-#if DEBUG
-            ,
-            Error = (sender, args) => {
-              if (System.Diagnostics.Debugger.IsAttached) {
-                System.Diagnostics.Debugger.Break();
-              }
-            }
-#endif
-          };
       }
     }
   }

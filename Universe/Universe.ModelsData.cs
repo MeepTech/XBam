@@ -114,20 +114,6 @@ namespace Meep.Tech.XBam {
           => GetFactory(typeof(TModel));
 
       /// <summary>
-      /// Set the builder factory for a type of component.
-      /// TODO: Must be doen during init
-      /// </summary>
-      public void SetFactory<TModel>(IModel.IFactory factory)
-        where TModel : IModel<TModel> 
-      {
-        if (!Universe.Loader.IsFinished) {
-          _universe.Models._factoriesByModelType[typeof(TModel)]
-            = factory;
-          Universe.Loader._initializedArchetypes.Add(factory as Archetype);
-        } else throw new InvalidOperationException($"Tried to edit a factory for the model type: {typeof(TModel).FullName} after the loader was sealed!");
-      }
-
-      /// <summary>
       /// Get the model type an archetype should produce by default.
       /// </summary>
       public Type GetModelTypeProducedBy(Archetype archetype)
@@ -213,66 +199,18 @@ namespace Meep.Tech.XBam {
           (type, newValue) => _factoriesByModelType[type] = newValue
         );
 
-      /*IModel.IBuilderFactory _findFirstInheritedFactory(Type modelType) {
-        if(!modelType.IsAssignableToGeneric(typeof(IModel<>))) {
-          throw new NotImplementedException(
-            $"Model Type: {modelType.FullName} does not inherit from Model<TModelBase>." +
-            $" If you are using Model<TModelBase, TArchetypeBase> then the Archetype " +
-            $"Base would be the default FactoryBuilder, and this should variable not be used."
-          );
+      /// <summary>
+      /// Set the builder factory for a type of component.
+      /// </summary>
+      internal void _setFactory<TModel>(IModel.IFactory factory)
+        where TModel : IModel<TModel> {
+        if (!Universe.Loader.IsFinished) {
+          _universe.Models._factoriesByModelType[typeof(TModel)]
+            = factory;
+          Universe.Loader._initializedArchetypes.Add(factory as Archetype);
         }
-
-        IModel.IBuilderFactory factory;
-        // check if we already have one set by someone:
-        if(_factoriesByModelType.TryGetValue(modelType, out factory)) {
-          ///// Do nothing
-        }// just the interface:
-        else if(modelType.BaseType == null) {
-          if(modelType.IsAssignableToGeneric(typeof(IModel<>))) {
-            factory = _makeDefaultFactoryFor(modelType);
-          }
-        }// if we need to find the base type:
-        else {
-          Type baseType = modelType.BaseType;
-          Type originalType = modelType;
-          Type currentValidType = originalType;
-          while(baseType != null) {
-              if (typeof(IModel).IsAssignableFrom(baseType)) {
-                if (baseType.BaseType?.FullName == typeof(Model).FullName) {
-                  factory = _makeDefaultFactoryFor(originalType);
-                  break;
-                }
-                if (_factoriesByModelType.TryGetValue(baseType, out factory)) {
-                  break;
-                }
-                if (baseType.Name == typeof(Model<>.WithComponents).Name
-                    && baseType.Module == typeof(Model<>.WithComponents).Module) {
-                  factory = _makeDefaultFactoryFor(originalType);
-                  break;
-                }
-              } else {
-                factory = _makeDefaultFactoryFor(originalType);
-                break;
-              }
-
-            if (!baseType.IsAbstract) {
-              currentValidType = baseType;
-            }
-
-            originalType = baseType;
-            baseType = baseType.BaseType;
-          }
-
-          if (factory is null) {
-            factory = _makeDefaultFactoryFor(currentValidType);
-          }
-        }
-
-
-        _factoriesByModelType[modelType] = factory
-          ?? throw new NotImplementedException($"No BuilderFactory was found or built for the model type: {modelType.FullName}");
-        return factory;
-      }*/
+        else throw new InvalidOperationException($"Tried to edit a factory for the model type: {typeof(TModel).FullName} after the loader was sealed!");
+      }
 
       /// <summary>
       /// Get the first factory inherited by a given model:
@@ -506,7 +444,7 @@ namespace Meep.Tech.XBam {
           var @params = constructor.GetParameters();
           if (@params.Length > 0) {
             if (@params.Length == 1) {
-              if (@params[0].ParameterType.IsAssignableToGeneric(typeof(IBuilder<>))) {
+              if (typeof(IBuilder).IsAssignableFrom(@params[0].ParameterType)) {
                 return (constructor.IsFamily || constructor.IsPublic ? 3 : 2, constructor);
               }
             }
@@ -521,7 +459,8 @@ namespace Meep.Tech.XBam {
         // remove incompatable ctors before the sort and pick
         .Where(rankedConstructor => rankedConstructor.Item1 > 0)
         .OrderByDescending(rankedConstructor => rankedConstructor.Item1)
-        .FirstOrDefault().constructor;
+        .FirstOrDefault()
+        .constructor;
 
         // no args ctor:
         if(!(ctor is null) && ctor.GetParameters().Length == 0) {

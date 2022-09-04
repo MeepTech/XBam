@@ -55,7 +55,7 @@ namespace Meep.Tech.XBam {
     internal protected IUnique InitializeId(string? providedId = null) {
       var idMaker = _getIdGetter(this);
       if (idMaker != null) {
-        Id = idMaker(this, providedId);
+        Id = idMaker(this, providedId) ?? Id;
       }
 
       return this;
@@ -120,15 +120,19 @@ namespace Meep.Tech.XBam {
 
     /// <summary>
     /// Get the unique id
+    /// This also ensures it's not null, unilke the property.
+    /// Alias of GetUniqueId(...);
     /// </summary>
+    /// <seealso cref="GetUniqueId(IUnique)"/>
     public static string Id(this IUnique unique)
-      => unique.Id;
+      => GetUniqueId(unique);
 
     /// <summary>
-    /// Get the unique id
+    /// Get the unique id.
+    /// This also ensures it's not null, unilke the property.
     /// </summary>
     public static string GetUniqueId(this IUnique unique)
-      => unique.Id;
+      => unique.Id ?? unique.InitializeId().Id;
 
     /// <summary>
     /// Copy a unique model, with a new unique id

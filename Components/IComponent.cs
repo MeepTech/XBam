@@ -44,10 +44,9 @@ namespace Meep.Tech.XBam {
 
     /// <summary>
     /// optional finalization logic for components pre-attached to models after the model has been finalized
-    /// TODO: this should be in an interface probably.
     /// </summary>
-    public XBam.IComponent FinalizeAfterParent(IModel parent, IBuilder builder)
-      => this;
+    /*public XBam.IComponent FinalizeAfterParent(IModel parent, IBuilder builder)
+      => this;*/
 
     internal static void _setUniverse(ref XBam.IComponent component, Universe universe) {
       component.Universe = universe;
@@ -58,8 +57,8 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Turn the component into a serialized data object.
     /// </summary>
-    public JObject ToJson(JsonSerializer overrideSerializer = null) {
-      var json = JToken.FromObject(this, overrideSerializer ?? (Universe ?? Components.DefaultUniverse).ModelSerializer.JsonSerializer);
+    /*public JObject ToJson(JsonSerializer overrideSerializer = null) {
+      JObject.FromObject(this, overrideSerializer ?? (Universe ?? Components.DefaultUniverse).ModelSerializer.JsonSerializer);
       if (json is JObject jsonObject) {
         jsonObject.Add(Model.Serializer.ComponentKeyPropertyName, Key);
         return jsonObject;
@@ -71,7 +70,7 @@ namespace Meep.Tech.XBam {
           };
       else
         throw new NotImplementedException($"Component of type {Key} must be serializable to a JObject or JArray by default using it's Universe.ModelSerializer.ComponentJsonSerializer.");
-    }
+    }*/
 
     JObject IModel.ToJson(JsonSerializer overrideSerializer = null)
       => ToJson();
@@ -79,95 +78,51 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Make a component from a jobject
     /// </summary>
-    /// TODO: This change should propogate to the parent type to somehow. Fix the new!.
     public static XBam.IComponent FromJson(
       JObject jObject,
-      IModel ontoParent,
+      IModel ontoParent = null,
       Type deserializeToTypeOverride = null,
       Universe universeOverride = null,
       params (string key, object value)[] withConfigurationParameters
-    ) => FromJson(jObject, ontoParent, deserializeToTypeOverride, universeOverride, (IEnumerable<(string key, object value)>)withConfigurationParameters);
+    ) => FromJson(
+      jObject,
+      ontoParent,
+      deserializeToTypeOverride,
+      universeOverride,
+      (IEnumerable<(string key, object value)>)withConfigurationParameters
+    );
 
     /// <summary>
     /// Make a component from a jobject
     /// </summary>
-    /// TODO: This change should propogate to the parent type to somehow. Fix the new!.
     public static XBam.IComponent FromJson(
       JObject jObject,
-      IModel ontoParent,
+      IModel ontoParent = null,
       Type deserializeToTypeOverride = null,
       Universe universeOverride = null,
       IEnumerable<(string key, object value)> withConfigurationParameters = null
     ) {
-      var component = FromJson(jObject, deserializeToTypeOverride, universeOverride);
+      var component = (IComponent)FromJson(jObject, deserializeToTypeOverride, universeOverride);
+      IBuilder builder = null;
 
       if (withConfigurationParameters?.Any() ?? false) {
-        XBam.IBuilder builder = (component.Factory as Archetype)
-          .GetGenericBuilderConstructor()((component.Factory as Archetype), withConfigurationParameters.ToDictionary(p => p.key, p => p.value));
-        (builder as IComponent.IBuilder).Parent = ontoParent;
-        component = (IComponent)component.OnInitialized(null, null, builder);
-        component = (IComponent)component.OnFinalized(builder);
+        builder 
+          = (IBuilder)
+            (component.Factory as Archetype)
+              .GetGenericBuilderConstructor()(
+                (component.Factory as Archetype),
+                withConfigurationParameters.ToDictionary(
+                  p => p.key,
+                  p => p.value
+                )
+              );
+
+        builder.Parent = ontoParent;
       }
+
+      IBuilder.InitalizeComponent(ref component, builder, (Archetype)component.Factory, universeOverride ?? component.Factory.Id.Universe);
 
       (ontoParent as IWriteableComponentStorage)?.AddComponent(component);
-
-      return component;
-    }
-
-    /// <summary>
-    /// Make a component from a jobject
-    /// </summary>
-    public new static XBam.IComponent FromJson(
-      JObject jObject,
-      Type deserializeToTypeOverride = null,
-      Universe universeOverride = null,
-      params (string key, object value)[] withConfigurationParameters
-    ) => FromJson(jObject, deserializeToTypeOverride, universeOverride, withConfigurationParameters as IEnumerable<(string, object)>);
-
-    /// <summary>
-    /// Make a component from a jobject
-    /// </summary>
-    /// TODO: This change should propogate to the parent type to somehow. Fix the new!.
-    public static XBam.IComponent FromJson(
-      JObject jObject,
-      Type deserializeToTypeOverride = null,
-      Universe universeOverride = null,
-      IEnumerable<(string key, object value)> withConfigurationParameters = null
-    ) {
-      string key;
-      Universe universe = universeOverride;
-      string compoundKey = jObject.Value<string>(Model.Serializer.ComponentKeyPropertyName);
-      string[] parts = compoundKey.Split('@');
-      if (parts.Length == 1) {
-        key = compoundKey;
-        universe ??= Components.DefaultUniverse;
-      } else if (parts.Length == 2) {
-        key = parts[0];
-        universe ??= Universe.s.TryToGet(parts[1]);
-      } else
-        throw new ArgumentException($"No Archetype identifier provided in component data: \n{jObject}");
-
-      // deserialize a collection type component
-      if (jObject.TryGetValue(Model.Serializer.ComponentValueCollectionPropertyName, out JToken valueCollection)) {
-        return (IComponent)valueCollection.ToObject(
-          deserializeToTypeOverride ?? universe.Components.Get(key),
-          universe.ModelSerializer.JsonSerializer
-        );
-      }
-
-      IComponent component = (IComponent)jObject.ToObject(
-        deserializeToTypeOverride ?? universe.Components.Get(key),
-        universe.ModelSerializer.JsonSerializer
-      );
-
-      component.Universe = universe ?? Components.DefaultUniverse ?? universeOverride;
-      // default init and configure.
-      if (withConfigurationParameters?.Any() ?? false) {
-        XBam.IBuilder builder = (component.Factory as Archetype)
-          .GetGenericBuilderConstructor()((component.Factory as Archetype), withConfigurationParameters.ToDictionary(p => p.key, p => p.value));
-        component = (IComponent)component.OnInitialized(null, null, builder);
-        component = (IComponent)component.OnFinalized(builder);
-      }
 
       return component;
     }

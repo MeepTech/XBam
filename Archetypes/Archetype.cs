@@ -1,4 +1,5 @@
 ﻿using Meep.Tech.Collections.Generic;
+using Meep.Tech.XBam.Configuration;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -15,10 +16,14 @@ namespace Meep.Tech.XBam {
     internal DelegateCollection<Func<IModel, IBuilder, IModel>>
       _modelAutoBuilderSteps;
     Type _modelTypeProduced;
-    internal HashSet<Archetype.IComponent> _modelLinkedComponents
+    internal HashSet<Archetype.IComponent.ILinkedComponent> _modelLinkedComponents
       = new(); 
     internal Dictionary<string, object> _defaultTestParams = null;
     HashSet<ITag> _tags;
+    internal Dictionary<string, Func<IComponent.IBuilder, IModel.IComponent>> _initialUnlinkedModelComponents
+      = new();
+    internal Dictionary<string, Archetype.IComponent> _initialComponents 
+      = new();
 
     #region Archetype Data Members
 
@@ -94,9 +99,8 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// The initial default components to add to this archetype on it's creation, indexed by their keys. 
     /// </summary>
-    protected internal virtual IReadOnlyDictionary<string, Archetype.IComponent> InitialComponents {
-      get;
-    } = new Dictionary<string, Archetype.IComponent>();
+    protected internal virtual IReadOnlyDictionary<string, Archetype.IComponent> InitialComponents
+      => _initialComponents;
 
     /// <summary>
     /// The Archetype components linked to model components
@@ -109,9 +113,8 @@ namespace Meep.Tech.XBam {
     /// Usually you'll want to use an Archetype.ILinkedComponent but this is here too for model components. not linked to an archetype component.
     /// If the constructor function is left null, the default component ctor is used.
     /// </summary>
-    protected internal virtual IReadOnlyDictionary<string, Func<IComponent.IBuilder, IModel.IComponent>> InitialUnlinkedModelComponents {
-      get;
-    } = new Dictionary<string, Func<IComponent.IBuilder, IModel.IComponent>>();
+    protected internal virtual IReadOnlyDictionary<string, Func<IComponent.IBuilder, IModel.IComponent>> InitialUnlinkedModelComponents 
+      => _initialUnlinkedModelComponents;
 
     /// <summary>
     /// If this is true, this Archetype can have it's component collection modified before load by mods and other libraries.
@@ -125,6 +128,13 @@ namespace Meep.Tech.XBam {
     /// Be careful with these, it's up to you to maintain singleton patters.
     /// </summary>
     protected internal virtual bool AllowInitializationsAfterLoaderFinalization
+      => false;
+
+    /// <summary>
+    /// If this is true, this archetype and children of it can be deinitialized after the loader has finished.
+    /// Be careful with these, it's up to you to maintain singleton patters.
+    /// </summary>
+    protected internal virtual bool AllowDeInitializationsAfterLoaderFinalization
       => false;
 
     /// <summary>
@@ -381,7 +391,7 @@ namespace Meep.Tech.XBam {
     /// Add a new component, throws if the component key is taken already
     /// </summary>
     protected void AddComponent(Archetype.IComponent toAdd) {
-      if(toAdd is Archetype.IComponent.IIsRestrictedToCertainTypes restrictedComponent && !restrictedComponent.IsCompatableWith(this)) {
+      if(toAdd is Archetype.IComponent.IAmRestrictedToCertainTypes restrictedComponent && !restrictedComponent.IsCompatableWith(this)) {
         throw new System.ArgumentException($"Component of type {toAdd.Key} is not compatable with model of type {GetType()}. The model must inherit from {restrictedComponent.RestrictedTo.FullName}.");
       }
 
@@ -407,7 +417,7 @@ namespace Meep.Tech.XBam {
     /// Add or replace a component
     /// </summary>
     protected void AddOrUpdateComponent(Archetype.IComponent toSet) {
-      if(toSet is Archetype.IComponent.IIsRestrictedToCertainTypes restrictedComponent && !restrictedComponent.IsCompatableWith(this)) {
+      if(toSet is Archetype.IComponent.IAmRestrictedToCertainTypes restrictedComponent && !restrictedComponent.IsCompatableWith(this)) {
         throw new System.ArgumentException($"Component of type {toSet.Key} is not compatable with model of type {GetType()}. The model must inherit from {restrictedComponent.RestrictedTo.FullName}.");
       }
       (this as IReadableComponentStorage).AddOrUpdateComponent(toSet);
@@ -475,29 +485,35 @@ namespace Meep.Tech.XBam {
     #endregion
 
     #endregion
-  
+
     /// <summary>
     /// Used to deserialize a jobject by default.
     /// </summary>
-    protected virtual internal IModel DeserializeModelFromJson(JObject jObject, Type deserializeToTypeOverride = null, params (string key, object value)[] withConfigurationParameters) {
-      string json = jObject.ToString();
+    protected internal IModel DeserializeModelFromJson(JObject jObject, Type deserializeToTypeOverride = null, params (string key, object value)[] withConfigurationParameters)
+      => DeserializeModelFromJson(jObject.ToString(), deserializeToTypeOverride, withConfigurationParameters);
+
+    /// <summary>
+    /// Used to deserialize a jobject by default.
+    /// </summary>
+    protected virtual internal IModel DeserializeModelFromJson(string json, Type deserializeToTypeOverride = null, params (string key, object value)[] withConfigurationParameters) {
       deserializeToTypeOverride
         ??= Id.Universe.Models.GetModelTypeProducedBy(this);
       IModel model = JsonConvert.DeserializeObject(
         json,
         deserializeToTypeOverride,
-        Id.Universe.ModelSerializer.Options.JsonSerializerSettings
+        Id.Universe.ModelSerializer.JsonSettings
       ) as IModel;
 
-      model.Universe = Id.Universe;
       // default init and configure.
-      if (withConfigurationParameters.Any()) {
-        Archetype builderFactory = (Models.GetFactory(model.GetType()) as Archetype);
-        IBuilder builder = builderFactory
-          .GetGenericBuilderConstructor()(builderFactory, withConfigurationParameters.ToDictionary(p => p.key, p => p.value));
-        model = model.OnInitialized(null, null, builder);
-        model = model.OnFinalized(builder);
+      IBuilder builder = null;
+      if (!model.Factory.Id.Equals(Id)) {
+        throw new InvalidCastException($"Tried to use Archetype: {Id}. To deserialize model with Archetype: {model.Factory.Id}");
       }
+      if (withConfigurationParameters.Any()) {
+        builder = GetGenericBuilderConstructor()(this, withConfigurationParameters.ToDictionary(p => p.key, p => p.value));
+      }
+
+      IModel.IBuilder.InitalizeModel(ref model, (IModel.IBuilder)builder, this, Id.Universe);
 
       return model;
     }
@@ -505,7 +521,7 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Used to serialize a model with this archetype to a jobject by default
     /// </summary>
-    protected internal virtual JObject SerializeModelToJson(IModel model, JsonSerializer serializerOverride = null)
+    protected internal virtual JObject SerializeModelToJson(IModel model, JsonSerializer serializerOverride = null) 
       => JObject.FromObject(
         model,
         serializerOverride ?? Id.Universe.ModelSerializer.JsonSerializer
@@ -618,9 +634,9 @@ namespace Meep.Tech.XBam {
     /// Add all initial components
     /// </summary>
     void _initializeInitialComponents() {
-      foreach(Archetype.IComponent component in InitialComponents.Values) {
+      foreach(IComponent component in InitialComponents.Values) {
         AddComponent(component);
-        if(component is Archetype.IComponent.ILinkedComponent linkedComponent) {
+        if(component is IComponent.ILinkedComponent linkedComponent) {
           _modelLinkedComponents.Add(linkedComponent);
         }
       }
@@ -630,7 +646,7 @@ namespace Meep.Tech.XBam {
     /// Deinitialize this Archetype internally
     /// </summary>
     void _deInitialize() {
-      _modelConstructor = null;
+      ModelInitializer = null;
       _deInitializeInitialComponents();
     }
 
@@ -638,9 +654,9 @@ namespace Meep.Tech.XBam {
     /// remove all components
     /// </summary>
     void _deInitializeInitialComponents() {
-      foreach(Archetype.IComponent component in InitialComponents.Values) {
+      foreach(IComponent component in InitialComponents.Values) {
         RemoveComponent(component);
-        if(component is Archetype.IComponent.ILinkedComponent linkedComponent) {
+        if(component is IComponent.ILinkedComponent linkedComponent) {
           _modelLinkedComponents.Remove(linkedComponent);
         }
       }
@@ -654,19 +670,61 @@ namespace Meep.Tech.XBam {
 
     /// <summary>
     /// Overrideable Model Construction logic.
-    /// Make sure to set overrides using "base.ModelConstructor ??= " in order to maintain auto-builder functionality.
     /// </summary>
-    protected internal virtual Func<IBuilder<TModelBase>, TModelBase> ModelConstructor {
-      get => _modelConstructor is not null 
-        ? (builder) => {
-          var model = (TModelBase)_modelConstructor(builder);
+    protected internal virtual Func<IBuilder<TModelBase>, TModelBase> ModelConstructor { 
+      get;
+      internal set;
+    }
+
+    /// <summary>
+    /// Model Auto-Build and Initialization logic.
+    /// </summary>
+    protected internal Func<IBuilder<TModelBase>, TModelBase> ModelInitializer {
+      get => ModelConstructor is not null 
+        ? builder =>  {
+          var model = ModelConstructor(builder);
           _modelAutoBuilderSteps?.ForEach(a => model = (TModelBase)a.Value(model, builder));
           return DoAfterAutoBuildSteps(model, builder);
         } : null;
       set {
-        _modelConstructor
-          = builder => value.Invoke(builder);
+        ModelConstructor = b => value.Invoke(b);
+        _initializeAutoBuilderSettings(value);
+      }
+    }
 
+    /// <summary>
+    /// An overrideable function allowing a user to modify a model after auto builder has run.
+    /// </summary>
+    protected virtual TModelBase DoAfterAutoBuildSteps(TModelBase model, IBuilder<TModelBase> builder)
+      => model;
+
+    /// <summary>
+    /// <inheritdoc/>
+    /// </summary>
+    Func<IBuilder, IModel> IFactory._modelConstructor {
+      get => ModelInitializer is null
+        ? null
+        : builder => ModelInitializer((IBuilder<TModelBase>)builder);
+      set {
+        if (value is null) {
+          ModelInitializer = null;
+        }
+        else {
+          ModelInitializer = b => (TModelBase)value.Invoke(b);
+        }
+      }
+    }
+
+    void _initializeAutoBuilderSettings(Func<IBuilder<TModelBase>, TModelBase> value) {
+      if (value is null) {
+        _modelAutoBuilderSteps = null;
+        ModelTypeProduced = null;
+        Id?.Universe?.Archetypes._rootArchetypeTypesByBaseModelType
+          .Where(e => e.Value == GetType())
+          .Select(e => e.Key)
+          .ToList()
+          .ForEach(k => Id.Universe.Archetypes._rootArchetypeTypesByBaseModelType.Remove(k));
+      } else { 
         IModel model
           = Configuration.Loader.GetOrBuildTestModel(
               this,
@@ -686,24 +744,6 @@ namespace Meep.Tech.XBam {
            e => e.function
           );
       }
-    }
-
-    /// <summary>
-    /// An overrideable function allowing a user to modify a model after auto builder has run.
-    /// </summary>
-    protected virtual TModelBase DoAfterAutoBuildSteps(TModelBase model, IBuilder<TModelBase> builder)
-      => model;
-
-    Func<IBuilder<TModelBase>, IModel> _modelConstructor;
-
-    /// <summary>
-    /// <inheritdoc/>
-    /// </summary>
-    Func<IBuilder, IModel> IFactory._modelConstructor {
-      get => ModelConstructor is null 
-        ? null 
-        : builder => ModelConstructor((IBuilder<TModelBase>)builder);
-      set => ModelConstructor = builder => (TModelBase)value(builder);
     }
 
     #endregion
@@ -742,7 +782,7 @@ namespace Meep.Tech.XBam {
     /// </summary>
     internal protected virtual Func<Archetype, IEnumerable<KeyValuePair<string, object>>, Universe, IBuilder<TModelBase>> BuilderConstructor {
       get => _defaultBuilderCtor ??= (archetype, @params, universe) 
-        => !(@params is null) 
+        => @params is not null 
           ? new IModel<TModelBase>.Builder(archetype, @params, universe)
           : new IModel<TModelBase>.Builder(archetype, universe); 
       set => _defaultBuilderCtor = value;
@@ -750,7 +790,6 @@ namespace Meep.Tech.XBam {
 
     /// <summary>
     /// helper for getting the builder constructor from the non-generic base class
-    /// TODO: I can probably cache this at least.
     /// </summary>
     protected internal override Func<Archetype, IEnumerable<KeyValuePair<string, object>>, IBuilder> GetGenericBuilderConstructor()
       => (archetype, @params) => BuilderConstructor(archetype, @params, null);
@@ -833,22 +872,6 @@ namespace Meep.Tech.XBam {
       where TDesiredModel : TModelBase
         => (TDesiredModel)Make((IEnumerable<(string key, object value)>)@params);
 
-   /* /// <summary>
-    /// Helper for potentially making an item without initializing a dictionary object
-    /// </summary>
-    /// <returns></returns>
-    protected internal TDesiredModel MakeAs<TDesiredModel>(IEnumerable<KeyValuePair<string, object>> @params, out TDesiredModel model)
-      where TDesiredModel : TModelBase
-        => model = (TDesiredModel)Make(@params);
-
-    /// <summary>
-    /// Helper for potentially making an item without initializing a dictionary object
-    /// </summary>
-    /// <returns></returns>
-    protected internal TDesiredModel MakeAs<TDesiredModel>(IEnumerable<(string, object)> @params, out TDesiredModel model)
-      where TDesiredModel : class, TModelBase
-        => model = (TDesiredModel)Make(@params);*/
-
     #endregion
 
     #region Builder Based
@@ -856,7 +879,7 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Build the model with the builder.
     /// </summary>
-    protected internal virtual TModelBase BuildModel(IBuilder<TModelBase> builder = null) {
+    protected internal virtual TModelBase BuildModel(IBuilder builder = null) {
       var builderToUse = builder;
       if(builder is null) {
         builderToUse = _defaultEmptyBuilder ??= Build();
@@ -867,7 +890,7 @@ namespace Meep.Tech.XBam {
         model.Universe = Id.Universe;
       }
 
-      return model;
+      return (TModelBase)model;
     }
 
     /// <summary>
@@ -996,8 +1019,7 @@ namespace Meep.Tech.XBam {
     /// Attempts to unload this archetype from the universe and collections it's registered to
     /// </summary>
     protected internal sealed override void TryToUnload() {
-      // TODO: should this be it's own setting; AllowDeInitializationsAfterLoaderFinalization?
-      if (!Id.Universe.Loader.IsFinished || AllowInitializationsAfterLoaderFinalization) {
+      if (!Id.Universe.Loader.IsFinished || AllowDeInitializationsAfterLoaderFinalization) {
         Universe universe = Id.Universe;
         OnUnloadFrom(universe);
         universe.Archetypes._unRegisterArchetype(this);

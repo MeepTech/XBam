@@ -19,7 +19,7 @@ namespace Meep.Tech.XBam {
         string[] parts = key.Split('@');
         Universe universe = parts.Length == 1 
           ? Archetypes.DefaultUniverse 
-          : Universe.s.TryToGet(parts.Last())
+          : Universe.All.TryToGet(parts.Last())
             ?? Archetypes.DefaultUniverse;
 
         return universe.Enumerations.Get(

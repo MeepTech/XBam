@@ -72,10 +72,14 @@ namespace Meep.Tech.XBam.Configuration {
         ? Math.Min(1f, Math.Max(0, (float)(((float)(_totalCurrentSubProcessSteps - _subProcessStepsRemaining)) / _totalCurrentSubProcessSteps)))
         : null;
 
+    ///<summary><inheritdoc/></summary>
+    public ConsoleProgressLogger()
+      : this(true, false) { }
+
     /// <summary>
     /// Make a special logger for the loader.
     /// </summary>
-    public ConsoleProgressLogger(bool verboseModeForErrors = true, bool verboseModeForNonErrors = false) {
+    public ConsoleProgressLogger(bool verboseModeForErrors, bool verboseModeForNonErrors = false) {
       VerboseModeForErrors = verboseModeForErrors;
       VerboseModeForNonErrors = verboseModeForNonErrors;
     }

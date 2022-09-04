@@ -33,6 +33,14 @@ namespace Meep.Tech.XBam {
         );
       }
 
+      /// <summary>
+      /// Make a ReadOnlyModelComponentCollection for a parent storage model.
+      /// </summary>
+      public ReadOnlyModelComponentCollection(IModel parentStorage, Dictionary<string, IModel.IComponent> initialItems = null) {
+        Storage = parentStorage;
+        _entries = initialItems;
+      }
+
       #region IReadOnlyDictionary Implementation
       ///<summary><inheritdoc/></summary>
       public Dictionary<string, IModel.IComponent> _entries
@@ -73,29 +81,32 @@ namespace Meep.Tech.XBam {
     }
 
     /// <summary>
-    /// Used to convert a collection of components to and from a json array
+    /// Used to convert a collection of components to and from a json object by key
     /// </summary>
     public class ComponentsToJsonConverter : JsonConverter<ReadOnlyModelComponentCollection> {
 
       public override void WriteJson(JsonWriter writer, [AllowNull] ReadOnlyModelComponentCollection value, JsonSerializer serializer) {
-        JObject[] values = value.Select(componentData => componentData.Value.ToJson()).ToArray();
-        writer.WriteStartArray();
-        values.ForEach(jObject => serializer.Serialize(writer, jObject));
-        writer.WriteEndArray();
+        writer.WriteStartObject();
+        value.ForEach(e => {
+          writer.WritePropertyName(e.Key);
+          serializer.Serialize(writer, e.Value.ToJson(serializer));
+        });
+        writer.WriteEndObject();
       }
 
       public override ReadOnlyModelComponentCollection ReadJson(JsonReader reader, Type objectType, [AllowNull] ReadOnlyModelComponentCollection existingValue, bool hasExistingValue, JsonSerializer serializer) {
-        if(reader.TokenType != JsonToken.StartArray) {
+        if (reader.TokenType != JsonToken.StartObject) {
           throw new ArgumentException($"Components Field for ECSBAM Models requires an array Jtoken to deserialize");
         }
-        JArray components = serializer.Deserialize<JArray>(reader);
+
+        JObject componentsJson = serializer.Deserialize<JObject>(reader);
+
+        Dictionary<string, IModel.IComponent> components = new();
+        foreach (var (key, componentToken) in componentsJson) {
+          components.Add(key, IComponent.FromJson((JObject)componentToken, ontoParent: existingValue.Storage) as IModel.IComponent);
+        }
         
-        return new ReadOnlyModelComponentCollection(existingValue.Storage, components.Select(token =>
-          IComponent.FromJson(token as JObject, ontoParent: existingValue.Storage) as IModel.IComponent
-        ).ToDictionary(
-          component => component.Key,
-          component => component
-        ));
+        return new ReadOnlyModelComponentCollection(existingValue.Storage, components);
       }
     }
   }

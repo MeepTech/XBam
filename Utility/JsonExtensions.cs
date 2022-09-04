@@ -1,5 +1,7 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
+using System.IO;
 
 namespace Meep.Tech.XBam {
   public static class JsonExtensions {
@@ -61,6 +63,32 @@ namespace Meep.Tech.XBam {
 
       JProperty heightConfig = jObject.Property(propertyName, comparer);
       return jObject.Remove(heightConfig.Name);
+    }
+  }
+
+  namespace Json {
+    public static class JsonExtensions {
+
+      /// <summary>
+      /// Get the first instance of a property from a json string.
+      /// </summary>
+      public static T GetFirstJsonPropertyInstance<T>(this string json, string propertyName) {
+        using var stringReader = new StringReader(json);
+        using var jsonReader = new JsonTextReader(stringReader);
+
+        while (jsonReader.Read()) {
+          if (jsonReader.TokenType == JsonToken.PropertyName
+            && (string)jsonReader.Value == propertyName
+          ) {
+            jsonReader.Read();
+
+            JsonSerializer serializer = new();
+            return serializer.Deserialize<T>(jsonReader);
+          }
+        }
+
+        return default;
+      }
     }
   }
 }

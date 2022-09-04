@@ -177,7 +177,10 @@ namespace Meep.Tech.XBam.Configuration {
       _initFields();
 
       Universe = universe ?? Universe ?? new Universe(this, Options.UniverseName);
+
+      Universe.ExtraContexts.OnModelSerializerInitializationStart(Universe);
       _initializeModelSerializerSettings();
+      Universe.ExtraContexts.OnModelSerializerInitializationComplete(Universe);
 
       Universe.ExtraContexts.OnLoaderInitializationComplete(Universe);
 
@@ -1804,13 +1807,13 @@ namespace Meep.Tech.XBam.Configuration {
 
     void _reportOnFailedTypeInitializations() {
       List<Failure> failures = new();
-      foreach ((System.Type componentType, Exception ex) in _uninitializedComponents.WithVauesFrom(_failedComponents)) {
+      foreach ((System.Type componentType, Exception ex) in _uninitializedComponents.AddAndSetVauesFrom(_failedComponents)) {
         failures.Add(new("Component", componentType, ex));
       }
-      foreach ((System.Type modelType, Exception ex) in _uninitializedModels.WithVauesFrom(_failedModels)) {
+      foreach ((System.Type modelType, Exception ex) in _uninitializedModels.AddAndSetVauesFrom(_failedModels)) {
         failures.Add(new("Model", modelType, ex));
       }
-      foreach ((System.Type archetypeType, Exception ex) in _uninitializedArchetypes.WithVauesFrom(_failedArchetypes)) {
+      foreach ((System.Type archetypeType, Exception ex) in _uninitializedArchetypes.AddAndSetVauesFrom(_failedArchetypes)) {
         failures.Add(new("Archetype", archetypeType, ex));
       }
       foreach ((MemberInfo enumProp, Exception ex) in _failedEnumerations) {

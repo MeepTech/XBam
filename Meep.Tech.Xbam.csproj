@@ -42,6 +42,4 @@
 	  </Reference>
 	</ItemGroup>
 
-	<Import Project="post-build-copy.csproj" Condition="Exists('post-build-copy.csproj')" />
-
 </Project>

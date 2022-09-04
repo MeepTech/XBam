@@ -26,7 +26,7 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Get the base model type of this model type.
     /// </summary>
-    public static System.Type GetBaseType(this System.Type type)
+    public static System.Type GetModelBaseType(this System.Type type)
       => DefaultUniverse.Models.GetBaseType(type);
 
     /// <summary>
@@ -61,7 +61,7 @@ namespace Meep.Tech.XBam {
           .GetFactory<TModel>();
       set {
         Models.DefaultUniverse.Models
-          .SetFactory<TModel>(value);
+          ._setFactory<TModel>(value);
       }
     }
 

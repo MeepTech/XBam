@@ -14,7 +14,7 @@ namespace Meep.Tech.XBam.Configuration {
         ? @default.ContractResolver ?? new Model.Serializer.DefaultContractResolver(universe)
         : new Model.Serializer.DefaultContractResolver(universe);
 
-      universe.ModelSerializer.Options.JsonSerializerSettings.Converters
+      universe.ModelSerializer.JsonSettings.Converters
         .ConcatIfNotNull(extraConverters)
           .ForEach(@default.Converters.Add);
 

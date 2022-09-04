@@ -38,7 +38,7 @@ namespace Meep.Tech.XBam {
         } else if(parts.Length == 2) {
           Universe universe;
           try {
-            universe = Universe.s.TryToGet(parts[1]);
+            universe = Universe.All.TryToGet(parts[1]);
           } catch(Exception) {
             throw new KeyNotFoundException($"Universe with name: {parts[1]}, not found.");
           }

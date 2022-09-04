@@ -250,9 +250,9 @@ namespace Meep.Tech.Collections.Generic {
     #region Merge 
 
     /// <summary>
-    /// Merge dictionaries together, overriding any values with the same key.
+    /// Merge dictionaries into the first one, overriding any values with the same key.
     /// </summary>
-    public static TDictionary WithVauesFrom<TDictionary, TKey, TValue>(this TDictionary baseDict, params IReadOnlyDictionary<TKey, TValue>[] dictionariesToMergeIn)
+    public static TDictionary AddAndSetVauesFrom<TDictionary, TKey, TValue>(this TDictionary baseDict, params IReadOnlyDictionary<TKey, TValue>[] dictionariesToMergeIn)
       where TDictionary : IDictionary<TKey, TValue>
     {
       if(dictionariesToMergeIn == null)
