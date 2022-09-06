@@ -1,5 +1,5 @@
 ﻿using Meep.Tech.Reflection;
-using Meep.Tech.XBam.Configuration;
+using Meep.Tech.XBam.Logging;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -15,20 +15,32 @@ namespace Meep.Tech.XBam {
     /// </summary>
     public partial interface IBuilder: XBam.IBuilder {
 
-      protected internal delegate void ModelModifier(ref IModel model, Archetype archetype, Universe universe, IBuilder builder = null);
+      /// <summary>
+      /// A delegate used to modify a model.
+      /// </summary>
 
+      protected internal delegate void ModelModifier(ref IModel model, Archetype archetype, Universe universe, IBuilder? builder = null);
+
+      /// <summary>
+      /// Used to initialize the model with or without a builder.
+      /// </summary>
       internal protected static void InitalizeModel(
-        ref IModel model,
-        IBuilder @this, 
-        Archetype archetype = null, 
-        Universe universe = null,
-        ModelModifier onConfigured = null,
-        ModelModifier onFinalized = null
+        ref IModel? model,
+        IBuilder? @this, 
+        Archetype? archetype = null, 
+        Universe? universe = null,
+        ModelModifier? onConfigured = null,
+        ModelModifier? onFinalized = null
       ) {
-        universe = @this?.Universe ?? universe;
-        archetype = @this?.Archetype ?? archetype;
+        universe = @this?.Universe ?? universe ?? throw new ArgumentNullException();
+        archetype = @this?.Archetype ?? archetype ?? throw new ArgumentNullException();
 
-        model ??= ((XBam.IFactory)archetype)._modelConstructor(@this); 
+        model ??= ((XBam.IFactory)archetype)._modelConstructor(@this)!;
+
+        if (model is null) {
+          return;
+        }
+
         model = model.OnInitialized(archetype, universe, @this);
 
         model = archetype.ConfigureModel(@this, model);
@@ -53,7 +65,7 @@ namespace Meep.Tech.XBam {
     public partial struct Builder : IModel.IBuilder, IBuilder<TModelBase> {
       Dictionary<string, object> _parameters 
         => __parameters ??= new();
-      Dictionary<string, object> __parameters;
+      Dictionary<string, object>? __parameters;
 
       /// <summary>
       /// The archetype/factory using this builder.
@@ -77,9 +89,9 @@ namespace Meep.Tech.XBam {
       /// <summary>
       /// Empty new builder
       /// </summary>
-      public Builder(XBam.Archetype type, Universe universe = null) {
+      public Builder(XBam.Archetype type, Universe? universe = null) {
         Archetype = type;
-        Universe = universe ?? type.Id.Universe;
+        Universe = universe ?? type.Universe;
         __parameters = null;
       }
 
@@ -88,7 +100,7 @@ namespace Meep.Tech.XBam {
       /// </summary>
       public Builder(XBam.Archetype type, IEnumerable<KeyValuePair<string, object>> @params, Universe universe = null) {
         Archetype = type;
-        Universe = universe ?? Archetype.Id.Universe;
+        Universe = universe ?? Archetype.Universe;
         __parameters = @params is not null 
           ? new(@params) 
           : null;
@@ -173,10 +185,10 @@ namespace Meep.Tech.XBam {
       /// Build the model.
       /// </summary>
       public TModelBase Make() {
-        IModel producedModel = default;
-        IModel.IBuilder.InitalizeModel(ref producedModel, this, onConfigured: (ref IModel model, Archetype archetype, Universe universe, IBuilder @this) => {
+        IModel producedModel = default!;
+        IModel.IBuilder.InitalizeModel(ref producedModel, this, onConfigured: (ref IModel model, Archetype archetype, Universe universe, IBuilder? @this) => {
           if (model is IReadableComponentStorage componentStorage) {
-            model = _initializeModelComponents((Builder)@this, componentStorage);
+            model = _initializeModelComponents(archetype, (Builder?)@this, componentStorage);
           }
 
 #if DEBUG
@@ -188,19 +200,14 @@ namespace Meep.Tech.XBam {
 #endif
 
         },
-        onFinalized: (ref IModel model, Archetype archetype, Universe universe, IBuilder @this) => {
-          // finalize the child components:
-          /*if (model is IReadableComponentStorage componentStorage) {
-            model = _finalizeModelComponents((Builder)@this, componentStorage);
-          }*/
-
+        onFinalized: (ref IModel model, Archetype archetype, Universe universe, IBuilder? @this) => {
           // loging
           model.TryToLog(
-            Configuration.ModelLog.Entry.ActionType.Built,
+            ModelLog.Entry.ActionType.Built,
             "null",
             @this,
             new Dictionary<string, object>() {
-            { ModelLog.Entry.MetadataField.AutoBuilderUsed.Key, archetype._modelAutoBuilderSteps?.Any() ?? false }
+            { ModelLog.Entry.MetadataField.AutoBuilderUsed.Key, archetype.Universe.TryToGetExtraContext<Configuration.IModelAutoBuilder>()?.HasAutoBuilderSteps(archetype) ?? false }
             }
           );
         });
@@ -212,11 +219,11 @@ namespace Meep.Tech.XBam {
       /// Loop though each model component and initialize them.
       /// This also adds all model data componnets linked to an archetype component first.
       /// </summary>
-      static TModelBase _initializeModelComponents(Builder @this, IReadableComponentStorage storage) {
+      static TModelBase _initializeModelComponents(Archetype archetype, Builder? @this, IReadableComponentStorage storage) {
         var parentModel = storage as IModel;
 
         // add components built from a given ctor
-        foreach ((string key, Func<IComponent.IBuilder, IModel.IComponent> ctor) in @this.Archetype.InitialUnlinkedModelComponents) {
+        foreach ((string key, Func<IComponent.IBuilder, IModel.IComponent> ctor) in archetype.InitialUnlinkedModelComponents) {
           XBam.IComponent.IBuilder componentBuilder = _makeComponentBuilder(@this, parentModel, key, out Type componentType);
 
           // no provided ctor, we need to get the default one.
@@ -233,34 +240,21 @@ namespace Meep.Tech.XBam {
         }
 
         /// add link components from the archetype
-        foreach (XBam.Archetype.IComponent.ILinkedComponent linkComponent in @this.Archetype.ModelLinkedComponents) {
+        foreach (XBam.Archetype.IComponent.ILinkedComponent linkComponent in archetype.ModelLinkedComponents) {
           XBam.IComponent.IBuilder componentBuilder = _makeComponentBuilder(@this, parentModel, linkComponent.Key, out _);
-          storage.AddComponent(linkComponent.BuildDefaultModelComponent(componentBuilder, @this.Archetype.Id.Universe));
+          storage.AddComponent(linkComponent.BuildDefaultModelComponent(componentBuilder, archetype.Universe));
         }
 
         return (TModelBase)storage;
       }
 
-      /// <summary>
-      /// Loop though each model component and finalize them.
-      /// </summary>
-      /*static TModelBase _finalizeModelComponents(Builder parentBuilder, IReadableComponentStorage parentStorage) {
-        var parentModel = parentStorage as IModel;
-        foreach (IModel.IComponent component in parentStorage.ComponentsByBuilderKey.Values) {
-          XBam.IComponent.IBuilder componentBuilder = _makeComponentBuilder(parentBuilder, parentModel, component.Key, out _);
-          //component.FinalizeAfterParent(parentStorage as IModel, componentBuilder);
-        }
-
-        return (TModelBase)parentStorage;
-      }*/
-
-      static XBam.IComponent.IBuilder _makeComponentBuilder(Builder parentBuilder, IModel parentModel, string key, out Type componentType) {
+      static XBam.IComponent.IBuilder _makeComponentBuilder(Builder? parentBuilder, IModel? parentModel, string key, out Type componentType) {
         // TOOD: cache this
         componentType = Components.DefaultUniverse.Components.Get(key);
         // Make a builder to match this component with the params from the parent:
-        var componentBuilder = ((IBuilderSource)Components.GetFactory(componentType))
-          .Build() as IComponent.IBuilder;
-        componentBuilder.__parameters = parentBuilder.__parameters;
+        var componentBuilder = (XBam.IComponent.IBuilder)((IBuilderSource)Components.GetFactory(componentType))
+          .Build();
+        componentBuilder.__parameters = parentBuilder?.__parameters;
         componentBuilder.Parent = parentModel;
 
         return componentBuilder;

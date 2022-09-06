@@ -1,5 +1,4 @@
 ﻿using Meep.Tech.XBam.Configuration;
-using System;
 using System.Collections.Generic;
 
 namespace Meep.Tech.XBam {
@@ -74,7 +73,7 @@ namespace Meep.Tech.XBam {
       /// <summary>
       /// This will be called for each enumeration loaded at runtime for the enumeration type.
       /// </summary>
-      internal protected TArchetypeBase ConstructArchetypeFor(TEnumeration enumeration);
+      internal protected TArchetypeBase ConstructArchetypeFor(TEnumeration enumeration, Universe universe);
 
       /// <summary>
       /// Get the specific Archetype for an enum value.

@@ -18,13 +18,9 @@ namespace Meep.Tech.XBam {
         IExposeDefaultModelBuilderMakeMethods.Fully 
     {
 
-      /*///<summary><inheritdoc/></summary>
-      protected WithAllDefaultModelBuilders(Archetype.Identity id, Collection collection = null) 
-        : base(id, null, collection) {}*/
-
       ///<summary><inheritdoc/></summary>
-      protected WithAllDefaultModelBuilders(Archetype.Identity id, Collection collection = null, Universe universe = null) 
-        : base(id, collection, universe) {}
+      protected WithAllDefaultModelBuilders(Archetype.Identity id, Universe universe = null) 
+        : base(id, universe) {}
 
       /// <summary>
       /// <inheritdoc/>
@@ -131,8 +127,8 @@ namespace Meep.Tech.XBam {
     {
 
       ///<summary><inheritdoc/></summary>
-      protected WithDefaultParamBasedModelBuilders(Archetype.Identity id, Universe universe = null, Collection collection = null) 
-        : base(id, collection, universe) { }
+      protected WithDefaultParamBasedModelBuilders(Archetype.Identity id, Universe universe = null) 
+        : base(id, universe) { }
 
       /// <summary>
       /// <inheritdoc/>
@@ -234,14 +230,9 @@ namespace Meep.Tech.XBam {
         IExposeDefaultModelBuilderMakeMethods.ViaParamList
     {
 
-      /*///<summary><inheritdoc/></summary>
-      protected WithDefaultBuilderBasedModelBuilders(Archetype.Identity id, Collection collection = null) 
-        : base(id, collection) {
-      }*/
-
       ///<summary><inheritdoc/></summary>
-      protected WithDefaultBuilderBasedModelBuilders(Archetype.Identity id, Collection collection = null, Universe universe = null) 
-        : base(id, collection, universe) {}
+      protected WithDefaultBuilderBasedModelBuilders(Archetype.Identity id, Universe universe = null) 
+        : base(id, universe) {}
 
       /// <summary>
       /// Make a default model from this Archetype

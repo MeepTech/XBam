@@ -1,4 +1,5 @@
-﻿using Meep.Tech.Reflection;
+﻿using Meep.Tech.Collections.Generic;
+using Meep.Tech.Reflection;
 using System;
 using System.Collections.Generic;
 
@@ -45,14 +46,16 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Make a new tag.
     /// </summary>
-    protected Tag(string key, Universe universe = null)
-      : base(key, universe) { }
+    protected Tag(string key)
+      : base(key) { }
 
-    Tag(string key, Universe universe, bool registerAsNew)
-      : base(typeof(TTag).FullName + key, universe, registerAsNew) {
-      if ((universe ?? Universe.Default).Enumerations._tagsByTypeAndKey.TryGetValue(typeof(TTag).FullName, out var tags)) {
-        tags.Add(key, this);
-      }
+    Tag(string key, bool registerAsNew)
+      : base(typeof(TTag).FullName + key, registerAsNew) {
+      Universe.All.Values.ForEach(universe => {
+        if (universe.Enumerations._tagsByTypeAndKey.TryGetValue(typeof(TTag).FullName, out var tags)) {
+          tags.Add(key, this);
+        }
+      });
     }
 
     /// <summary>
@@ -62,7 +65,7 @@ namespace Meep.Tech.XBam {
       => (universe ?? Universe.Default).Enumerations._tagsByTypeAndKey.TryGetValue(typeof(TTag).FullName, out var tags)
         ? (TTag)tags[key]
         : typeof(TTag).HasAttribute<UserGenerateableAttribute>()  
-          ? (TTag)(tags[key] = new Tag<TTag>(key, universe ?? Universe.Default, true))
+          ? (TTag)(tags[key] = new Tag<TTag>(key, true))
           : throw new KeyNotFoundException($"Tag with key: {key}, not found, and cannot be generated as : {typeof(TTag).ToFullHumanReadableNameString()} does not have a UserGenerateableAttribute.");
 
     /// <summary>
@@ -71,9 +74,20 @@ namespace Meep.Tech.XBam {
     /// </summary>
     public Tag<TTag> WithExtraContext(params string[] extraContexts) {
       string key = ExternalId as string + string.Join('|', extraContexts);
-      return (Tag<TTag>)(Universe.Enumerations._withExtraContext.TryGetValue(key, out ITag existing)
+      return (Tag<TTag>)(Universe.Default.Enumerations._withExtraContext.TryGetValue(key, out ITag existing)
         ? existing
-        : (Universe.Enumerations._withExtraContext[key] = new Tag<TTag>(key, Universe, false)));
+        : (Universe.Default.Enumerations._withExtraContext[key] = new Tag<TTag>(key, false)));
+    }
+
+    /// <summary>
+    /// Make a version of this tag with some required extra context.
+    /// Can be used to make specific events like 'level-up|[CHARACTERID]' vs just 'level-up'
+    /// </summary>
+    public Tag<TTag> WithExtraContext(Universe universe, params string[] extraContexts) {
+      string key = ExternalId as string + string.Join('|', extraContexts);
+      return (Tag<TTag>)(universe.Enumerations._withExtraContext.TryGetValue(key, out ITag existing)
+        ? existing
+        : (universe.Enumerations._withExtraContext[key] = new Tag<TTag>(key, false)));
     }
 
     ITag ITag.WithExtraContext(params string[] extraContexts)

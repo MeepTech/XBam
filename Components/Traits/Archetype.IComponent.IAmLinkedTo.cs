@@ -1,4 +1,6 @@
-﻿namespace Meep.Tech.XBam {
+﻿using System;
+
+namespace Meep.Tech.XBam {
 
   public abstract partial class Archetype {
 

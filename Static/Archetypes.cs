@@ -44,7 +44,13 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Get a collection registered to an archetype root:
     /// </summary>
-    public static Archetype.Collection GetCollectionFor(Archetype root)
+    public static Archetype.Collection GetCollection(Archetype root)
+      => DefaultUniverse.Archetypes.GetCollection(root);
+
+    /// <summary>
+    /// Get a collection registered to an archetype root:
+    /// </summary>
+    public static Archetype.Collection GetCollection(System.Type root)
       => DefaultUniverse.Archetypes.GetCollection(root);
 
     #endregion
@@ -112,9 +118,9 @@ namespace Meep.Tech.XBam {
       => Instance;
 
     /// <summary>
-    /// Helper to get the collection for this archetype:
+    /// Helper to get the collection for this archetype:d
     /// </summary>
     public static Archetype.Collection Collection
-      => Archetypes.GetCollectionFor(typeof(TArchetype).AsArchetype());
+      => Archetypes.GetCollection(typeof(TArchetype));
   }
 }

@@ -115,10 +115,12 @@ namespace Meep.Tech.XBam {
         var enumType = enumeration.GetType();
         while (enumType.IsAssignableToGeneric(typeof(Enumeration<>)) && (!enumType.IsGenericType || (enumType.GetGenericTypeDefinition() != typeof(Enumeration<>)))) {
           if (_byType.TryGetValue(enumType.FullName, out var found)) {
-            found.Add(
+            if (!found.TryAdd(
               enumeration.ExternalId,
              enumeration
-            );
+            )) {
+              throw new Configuration.Loader.CannotInitializeResourceException($"Enum with Key: {enumeration.ExternalId.ToString()}, could not be added to collection for enums of type: {enumType.ToFullHumanReadableNameString()}. The Enum is already present in the collection.");
+            }
           }
           else
             _byType[enumType.FullName] = new Dictionary<object, Enumeration> {
@@ -135,7 +137,7 @@ namespace Meep.Tech.XBam {
             if (potentialLazySplayedTypes.TryGetValue(enumeration.GetType(), out var lazySplayedArchetypeCtors)) {
               lazySplayedArchetypeCtors.ForEach(c => {
                 Universe.ExtraContexts.OnLoaderArchetypeInitializationStart(enumeration.GetType(), true);
-                var a = c.Value(enumeration);
+                var a = c.Value(enumeration, Universe);
                 Universe.ExtraContexts.OnLoaderArchetypeInitializationComplete(true, a.GetType(), a, null, true);
               });
             }

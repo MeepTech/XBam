@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Meep.Tech.Collections.Generic;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,10 +23,10 @@ namespace Meep.Tech.XBam {
     /// </summary>
     object ExternalId { get; }
 
-    /// <summary>
+    /*/// <summary>
     /// The universe this enum is a part of
     /// </summary>
-    Universe Universe { get; }
+    Universe Universe { get; }*/
 
     /// <summary>
     /// The base type of this enumeration
@@ -37,7 +38,7 @@ namespace Meep.Tech.XBam {
   /// Base for a simple Enumerable value
   /// </summary>
   public abstract partial class Enumeration 
-    : IEnumeration, IEquatable<Enumeration>, IResource
+    : IEnumeration, IEquatable<Enumeration>
   {
 
     /// <summary>
@@ -66,14 +67,14 @@ namespace Meep.Tech.XBam {
       }
     } object _externalId;
 
-    /// <summary>
+    /*/// <summary>
     /// The universe this enum is a part of
     /// </summary>
     [JsonIgnore]
     public Universe Universe {
       get;
       private set;
-    }
+    }*/
 
     /// <summary>
     /// The base type of this enumeration
@@ -85,17 +86,17 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Make a new enumeration.
     /// </summary>
-    protected Enumeration(object uniqueIdentifier, Universe universe = null)
-      : this(uniqueIdentifier, universe, true) { }
+    protected Enumeration(object uniqueIdentifier/*, Universe universe = null*/)
+      : this(uniqueIdentifier, /*universe, */true) { }
 
-    internal Enumeration(object uniqueIdentifier, Universe universe, bool registerAsNew) {
-      Universe = universe ?? Archetypes.DefaultUniverse;
+    internal Enumeration(object uniqueIdentifier/*, Universe universe*/, bool registerAsNew) {
+      /*Universe = universe ?? Archetypes.DefaultUniverse;
       if (Universe is null) {
         throw new System.ArgumentNullException(nameof(Universe));
       }
       if (Universe.Enumerations is null) {
         throw new System.ArgumentNullException("Universe.Enumerations");
-      }
+      }*/
 
       InternalId = Interlocked.Increment(ref _currentMaxInternalEnumId) - 1;
 
@@ -106,13 +107,35 @@ namespace Meep.Tech.XBam {
 
     void _registerNew(object uniqueIdentifier) {
       _externalId = UniqueIdCreationLogic(uniqueIdentifier);
-      Universe.Enumerations._register(this);
+
+      if (Universe.All.Count > 1) {
+        Universe.All.Values.ForEach(u => {
+          if (!u.Loader.IsFinished || u.Loader.Options.AllowLazyEnumerationRegistration) {
+            u.Enumerations._register(this);
+          }
+        });
+      } else {
+        if (Universe.Default.Loader.IsFinished && !Universe.Default.Loader.Options.AllowLazyEnumerationRegistration) {
+          throw new Configuration.Loader.CannotInitializeResourceException($"The Only Present Universe Does Not Allow Lazy Enumeration Registration");
+        } else {
+          Universe.Default.Enumerations._register(this);
+        }
+      }
     }
 
-    internal void _deRegisterFromCurrentUniverse() {
-      Universe.Enumerations._deRegister(this);
-      InternalId = -1;
-      Universe = null;
+    internal void _deRegister(Universe universe = null) {
+      if (universe is null) {
+        Universe.All.Values.ForEach(u => {
+          u.Enumerations._deRegister(this);
+        });
+        InternalId = -1;
+      } else {
+        if (Universe.All.Count == 1) {
+          _deRegister();
+        } else {
+          universe.Enumerations._deRegister(this);
+        }
+      }
     }
 
     /// <summary>
@@ -196,11 +219,11 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Make a new type of enumeration.
     /// </summary>
-    protected Enumeration(object uniqueIdentifier, Universe universe = null) 
-      : base(uniqueIdentifier, universe) { }
+    protected Enumeration(object uniqueIdentifier) 
+      : base(uniqueIdentifier) { }
 
-    internal Enumeration(object uniqueIdentifier, Universe universe, bool registerAsNew)
-      : base(uniqueIdentifier, universe, registerAsNew) { }
+    internal Enumeration(object uniqueIdentifier, bool registerAsNew)
+      : base(uniqueIdentifier, registerAsNew) { }
 
     /// <summary>
     /// Used to make a unique id for an enum from the provided unique value.

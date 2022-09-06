@@ -1,5 +1,4 @@
 ﻿using Meep.Tech.Collections.Generic;
-using System;
 using System.Text.RegularExpressions;
 
 namespace Meep.Tech.XBam.Utility {

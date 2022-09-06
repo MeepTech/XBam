@@ -43,11 +43,6 @@ namespace Meep.Tech.XBam {
     Loader Loader { get; }
 
     /// <summary>
-    /// The model serializer instance for this universe
-    /// </summary>
-    Model.Serializer ModelSerializer { get; }
-
-    /// <summary>
     /// Get an extra context item that was assigned to this universe.
     /// </summary>
     TExtraContext GetExtraContext<TExtraContext>()
@@ -57,6 +52,18 @@ namespace Meep.Tech.XBam {
     /// Get an extra context item that was assigned to this universe.
     /// </summary>
     bool HasExtraContext<TExtraContext>()
+      where TExtraContext : IExtraUniverseContextType;
+
+    /// <summary>
+    /// Try to get an extra context item that was assigned to this universe.
+    /// </summary>
+    bool TryToGetExtraContext<TExtraContext>(out TExtraContext? extraContext)
+      where TExtraContext : IExtraUniverseContextType;
+
+    /// <summary>
+    /// Try to get an extra context item that was assigned to this universe.
+    /// </summary>
+    TExtraContext? TryToGetExtraContext<TExtraContext>()
       where TExtraContext : IExtraUniverseContextType;
   }
 }

@@ -1,12 +1,8 @@
-﻿using Meep.Tech.Collections.Generic;
-using Meep.Tech.XBam.Configuration;
-using Meep.Tech.XBam.Json;
+﻿using Meep.Tech.XBam.Json;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Xml.Linq;
 
 namespace Meep.Tech.XBam {
 
@@ -36,13 +32,6 @@ namespace Meep.Tech.XBam {
     }
 
     /// <summary>
-    /// Overrideable static initializer for model classes.
-    /// Called right after the static initializer
-    /// </summary>
-    /// <param name="universe">The current universe being set up</param>
-    protected internal static void Setup(Universe universe) { }
-
-    /// <summary>
     /// Initializes the universe, archetype, factory and other built in model links.
     /// To set the archetype of a model in a custom public constructor, call this method.
     /// </summary>
@@ -54,82 +43,6 @@ namespace Meep.Tech.XBam {
     /// </summary>
     protected internal IModel OnFinalized(XBam.IBuilder? builder)
       => this;
-
-    /// <summary>
-    /// Copy the model by serializing and deserializing it.
-    /// </summary>
-    public IModel Copy() {
-      string originalJson = null;
-      if (this.CanLog(out var logger)) {
-        originalJson = ToJson().ToString();
-        logger.AppendActionToLog(
-          Configuration.ModelLog.Entry.ActionType.Copied,
-          originalJson,
-          null,
-          new Dictionary<string, object> { { Configuration.ModelLog.Entry.MetadataField.IsACopy.Key, false } }
-        );
-      }
-
-      var copy = Universe.ModelSerializer.ModelCopyMethod(this);
-
-      if (logger is not null) { 
-        ((IReadableComponentStorage)copy).Log(
-          Configuration.ModelLog.Entry.ActionType.Copied,
-          "null",
-          new KeyValuePair<string, object>[] { new("original", originalJson) },
-          new Dictionary<string, object> { { Configuration.ModelLog.Entry.MetadataField.IsACopy.Key, true} }
-        );
-      }
-
-      return copy;
-    }
-
-    #region Json Serialization
-
-    /// <summary>
-    /// Turn the model into a serialized data object.
-    /// </summary>
-    public JObject ToJson(JsonSerializer serializerOverride = null) 
-      => ((Archetype)Factory).SerializeModelToJson(this, serializerOverride);
-    
-
-    /// <summary>
-    /// Deserialize a model from a json object
-    /// </summary>
-    /// <param name="deserializeToTypeOverride">You can use this to try to make JsonSerialize use 
-    ///    a different Type's info for deserialization than the default returned from GetModelTypeProducedBy</param>
-    /// <param name="withConfigurationParameters">configuration paramaters to use while re-building the model.</param>
-    public static IModel FromJson(
-      string json,
-      Type deserializeToTypeOverride = null,
-      Universe universe = default,
-      params (string key, object value)[] withConfigurationParameters
-    ) {
-      universe ??= Models.DefaultUniverse;
-      string key = json.GetFirstJsonPropertyInstance<string>(nameof(Archetype).ToLower());
-      return universe.Archetypes.All.Get(key)
-        .DeserializeModelFromJson(json, deserializeToTypeOverride, withConfigurationParameters);
-    }
-
-    /// <summary>
-    /// Deserialize a model from a json object
-    /// </summary>
-    /// <param name="deserializeToTypeOverride">You can use this to try to make JsonSerialize use 
-    ///    a different Type's info for deserialization than the default returned from GetModelTypeProducedBy</param>
-    /// <param name="withConfigurationParameters">configuration paramaters to use while re-building the model.</param>
-    public static IModel FromJson(
-      JObject jObject,
-      Type deserializeToTypeOverride = null,
-      Universe universe = default,
-      params (string key, object value)[] withConfigurationParameters
-    ) {
-      universe ??= Models.DefaultUniverse;
-      string key = jObject.Value<string>(nameof(Archetype).ToLower());
-      return universe.Archetypes.All.Get(key)
-        .DeserializeModelFromJson(jObject, deserializeToTypeOverride, withConfigurationParameters);
-    }
-
-    #endregion
   }
 
   /// <summary>
@@ -149,34 +62,10 @@ namespace Meep.Tech.XBam {
     /// For the base configure calls
     /// </summary>
     IModel IModel.OnInitialized(Archetype archetype, Universe? universe, XBam.IBuilder? builder) {
-      Universe = universe ?? builder?.Archetype.Id.Universe ?? Universe.Default;
+      Universe = universe ?? builder?.Archetype.Universe ?? Universe.Default;
 
       return this;
     }
-
-    /// <summary>
-    /// Deserialize a model from json as a TModelBase
-    /// </summary>
-    /// <param name="deserializeToTypeOverride">You can use this to try to make JsonSerialize 
-    ///    use a different Type's info for deserialization than the default returned from GetModelTypeProducedBy</param>
-    public new static TModelBase FromJson(
-       JObject jObject,
-       Type deserializeToTypeOverride = null,
-       Universe universe = default,
-       params (string key, object value)[] withConfigurationParameters
-     ) => (TModelBase)IModel.FromJson(jObject, deserializeToTypeOverride, universe, withConfigurationParameters);
-
-    /// <summary>
-    /// Deserialize a model from json as a TModelBase
-    /// </summary>
-    /// <param name="deserializeToTypeOverride">You can use this to try to make JsonSerialize 
-    ///    use a different Type's info for deserialization than the default returned from GetModelTypeProducedBy</param>
-    public new static TModelBase FromJson(
-       string json,
-       Type deserializeToTypeOverride = null,
-       Universe universe = default,
-       params (string key, object value)[] withConfigurationParameters
-     ) => (TModelBase)IModel.FromJson(json, deserializeToTypeOverride, universe, withConfigurationParameters);
   }
 
   /// <summary>
@@ -195,61 +84,31 @@ namespace Meep.Tech.XBam {
     where TArchetypeBase : Archetype<TModelBase, TArchetypeBase> {
 
     /// <summary>
+    /// Default collection of archetypes for this model type based on the Default Univese
+    /// </summary>
+    public static Archetype<TModelBase, TArchetypeBase>.Collection Types
+      => (Archetype<TModelBase, TArchetypeBase>.Collection)
+        Archetypes.DefaultUniverse.Archetypes.GetCollection(typeof(TArchetypeBase));
+
+    /// <summary>
     /// The archetype for this model
     /// </summary>
     public TArchetypeBase Archetype {
       get;
       internal set;
     }
+
     XBam.IFactory IModel.Factory
       => Archetype;
 
     /// <summary>
     /// For the base configure calls
     /// </summary>
-    IModel IModel.OnInitialized(Archetype archetype, Universe? universe, XBam.IBuilder? builder) {
-      Archetype = (TArchetypeBase)(archetype ?? builder?.Archetype);
-      Universe = universe ?? builder?.Archetype.Id.Universe ?? Universe.Default;
+    IModel IModel.OnInitialized([NotNull] Archetype archetype, Universe? universe, XBam.IBuilder? builder) {
+      Archetype = (TArchetypeBase)(archetype ?? throw new ArgumentNullException(nameof(Archetype)));
+      Universe = universe ?? Archetype.Universe ?? Universe.Default;
 
       return this;
     }
-
-    /// <summary>
-    /// Turn the model into a serialized data object.
-    /// </summary>
-    JObject IModel.ToJson(JsonSerializer serializerOverride = null)
-      => Archetype.SerializeModelToJson(this, serializerOverride);
-
-    /// <summary>
-    /// Deserialize a model from json as a TModelBase
-    /// </summary>
-    /// <param name="deserializeToTypeOverride">You can use this to try to make JsonSerialize 
-    ///    use a different Type's info for deserialization than the default returned from GetModelTypeProducedBy</param>
-    public new static TModelBase FromJson(
-       JObject jObject,
-       Type deserializeToTypeOverride = null,
-       Universe universeOverride = null,
-       params (string key, object value)[] withConfigurationParameters
-     ) => IModel<TModelBase>.FromJson(jObject, deserializeToTypeOverride, universeOverride, withConfigurationParameters);
-  }
-
-  /// <summary>
-  /// Extension methods for models
-  /// </summary>
-  /// <see cref="IModel"/>
-  public static class IModelExtensions {
-
-    /// <summary>
-    /// Turn the model into a serialized data object.
-    /// </summary>
-    public static JObject ToJson(this IModel model, JsonSerializer serializerOverride = null)
-      => model.ToJson(serializerOverride);
-
-    /// <summary>
-    /// Copy the model by serializing and deserializing it.
-    /// Overrideable via IModel.copy()
-    /// </summary>
-    public static IModel Copy(this IModel original)
-      => original.Copy();
   }
 }

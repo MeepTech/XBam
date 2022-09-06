@@ -22,8 +22,8 @@ namespace Meep.Tech.XBam {
       /// </summary>
       protected static void SetDefaultXBamConstructor(IComponent<TComponentBase>.IFactory factory, Func<IBuilder<TComponentBase>, TComponentBase> constructor) {
         // TODO: I wonder if i can throw an error if this isn't called from the right static ctor
-        if ((factory as XBam.Archetype).AllowInitializationsAfterLoaderFinalization || !factory.Id.Universe.Loader.IsFinished)
-          Components<TComponentBase>.Factory.ModelInitializer = constructor;
+        if (((Archetype)factory).AllowInitializationsAfterLoaderFinalization || !factory.Universe.Loader.IsFinished)
+          Components<TComponentBase>.Factory.ModelConstructor = b => constructor((IBuilder<TComponentBase>)b);
         else throw new AccessViolationException($"Cannot modify a sealed component factory: {factory}");
       }
     }

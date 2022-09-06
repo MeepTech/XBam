@@ -10,14 +10,14 @@ namespace Meep.Tech.Collections.Generic {
     /// Try tho get a value. Returns default on failure.
     /// </summary>
     public static TValue TryToGet<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> dictionary, TKey key)
-        => dictionary.TryGetValue(key, out var found) ? found : default;
+        => dictionary.TryGetValue(key, out var found) ? found : default!;
 
     /// <summary>
     /// Try tho get a value. Returns default on failure.
     /// </summary>
     public static TValue TryToGet<TDictionary, TKey, TValue>(this TDictionary dictionary, TKey key)
       where TDictionary : IReadOnlyDictionary<TKey, TValue>
-        => dictionary.TryGetValue(key, out var found) ? found : default;
+        => dictionary.TryGetValue(key, out var found) ? found : default!;
 
     /// <summary>
     /// Try tho get a value. Returns default on failure.

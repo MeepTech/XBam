@@ -2,9 +2,10 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using Newtonsoft.Json.Linq;
+using Meep.Tech.XBam.Json;
 
 namespace Meep.Tech.XBam {
-
+  /*
   public partial class Model {
 
     /// <summary>
@@ -13,6 +14,14 @@ namespace Meep.Tech.XBam {
     /// </summary>
     public class JsonConverter : JsonConverter<IModel> {
 
+      public Universe Universe {
+        get;
+      }
+
+      public JsonConverter(Universe universe) {
+        Universe = universe;
+      }
+
       ///<summary><inheritdoc/></summary>
       public override IModel ReadJson(
         JsonReader reader,
@@ -20,7 +29,7 @@ namespace Meep.Tech.XBam {
         [AllowNull] IModel existingValue,
         bool hasExistingValue,
         JsonSerializer serializer
-      ) => IModel.FromJson(serializer.Deserialize<JObject>(reader), objectType, existingValue?.Universe);
+      ) => Deserialize.ToModel(serializer.Deserialize<JObject>(reader), objectType, Universe, serializer);
 
       ///<summary><inheritdoc/></summary>
       public override void WriteJson(
@@ -29,5 +38,5 @@ namespace Meep.Tech.XBam {
         JsonSerializer serializer
       ) => serializer.Serialize(writer, value.ToJson());
     }
-  }
+  }*/
 }

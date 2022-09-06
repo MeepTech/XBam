@@ -1,8 +1,8 @@
-﻿using Newtonsoft.Json;
+﻿using Meep.Tech.XBam.Logging.Configuration;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Meep.Tech.XBam.Configuration {
+namespace Meep.Tech.XBam.Logging {
 
   /// <summary>
   /// Log for a model
@@ -31,7 +31,7 @@ namespace Meep.Tech.XBam.Configuration {
       _log.Add(entry);
 
       if (this.GetContainer().Universe.Loader.IsFinished && this.GetContainer().Universe.TryToGetExtraContext<ConsoleProgressLogger>(out var logger)) {
-        if (logger.VerboseModeForNonErrors) {
+        if (logger!.VerboseModeForNonErrors) {
           logger.WriteMessage(entry.ToString(), "Model Edits");
         }
       }

@@ -1,4 +1,5 @@
 ﻿using Meep.Tech.Reflection;
+using Meep.Tech.XBam.Configuration;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using System;
@@ -7,7 +8,7 @@ using System.Linq;
 using System.Reflection;
 using static Meep.Tech.XBam.Archetype;
 
-namespace Meep.Tech.XBam.Configuration {
+namespace Meep.Tech.XBam.Logging.Configuration {
 
   /// <summary>
   /// Used to set up debugging and progress loading bars for xbam.

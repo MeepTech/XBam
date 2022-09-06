@@ -116,9 +116,9 @@ namespace Meep.Tech.Collections.Generic {
       => @if() ? enumeration.Concat(other) : enumeration;
 
     /// <summary>
-    /// append a value if the condition is true
+    /// append a collection to the current one if the other collection is not null
     /// </summary>
-    public static IEnumerable<T> ConcatIfNotNull<T>(this IEnumerable<T> enumeration, IEnumerable<T> other) 
+    public static IEnumerable<T> ConcatIfNotNull<T>(this IEnumerable<T> enumeration, IEnumerable<T>? other) 
       => other is not null ? enumeration.Concat(other) : enumeration;
 
     /// <summary>

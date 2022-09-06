@@ -1,5 +1,4 @@
-﻿using Meep.Tech.XBam;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Meep.Tech.Messaging {
   public abstract partial class Event {
@@ -13,8 +12,8 @@ namespace Meep.Tech.Messaging {
       /// <summary>
       /// Make a new tag.
       /// </summary>
-      public Tag(string key, Universe universe = null)
-        : base(key, universe) { }
+      public Tag(string key)
+        : base(key) { }
     }
   }
 }

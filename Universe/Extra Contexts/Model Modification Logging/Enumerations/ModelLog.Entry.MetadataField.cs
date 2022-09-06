@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Meep.Tech.XBam.Configuration {
+namespace Meep.Tech.XBam.Logging {
   public partial class ModelLog {
     public partial struct Entry {
       /// <summary>
@@ -23,8 +23,8 @@ namespace Meep.Tech.XBam.Configuration {
 
         public Type ValueType { get; }
 
-        protected MetadataField(string fieldKey, System.Type valueType, Universe universe = null)
-          : base(fieldKey, universe) {
+        protected MetadataField(string fieldKey, System.Type valueType)
+          : base(fieldKey) {
           ValueType = valueType;
         }
       }

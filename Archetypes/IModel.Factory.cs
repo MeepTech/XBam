@@ -31,17 +31,9 @@ namespace Meep.Tech.XBam {
       public Factory(
         Identity id,
         Universe universe,
-        HashSet<XBam.Archetype.IComponent> archetypeComponents,
-        IEnumerable<Func<IBuilder, IModel.IComponent>> modelComponentCtors 
+        HashSet<XBam.Archetype.IComponent> archetypeComponents = null,
+        IEnumerable<Func<IBuilder, IModel.IComponent>> modelComponentCtors = null 
       )  : base(id, universe, archetypeComponents, modelComponentCtors) { }
-
-      /// <summary>
-      /// Used to make a new factory.
-      /// </summary>
-      public Factory(
-        Identity id,
-        Universe universe = null
-      )  : base(id, universe) { }
     }
 
     /// <summary>
@@ -69,7 +61,7 @@ namespace Meep.Tech.XBam {
       /// <inheritdoc/>
       /// </summary>
       Func<XBam.IBuilder, IModel> XBam.IFactory._modelConstructor {
-        get => ModelInitializer is null
+        get => ModelConstructor is null
           ? null
           : builder => ModelInitializer((IBuilder<TModelBase>)builder);
         set {
@@ -113,19 +105,21 @@ namespace Meep.Tech.XBam {
       /// </summary>
       internal protected Factory(
         XBam.Archetype.Identity id,
-        Universe universe = null,
+        Universe universe,
+        // TODO: implement:
         HashSet<XBam.Archetype.IComponent> archetypeComponents = null,
         IEnumerable<Func<IBuilder, IModel.IComponent>> modelComponentCtors = null
       ) : base(
             id,
-            (Collection)((universe ?? Models.DefaultUniverse).Models._factoriesByModelBases
+            universe,
+            u => (Collection)(u.Models._factoriesByModelBases
               .TryGetValue(typeof(TModelBase), out var collection)
                 ? collection 
-                : (universe ?? Models.DefaultUniverse).Models._factoriesByModelBases[typeof(TModelBase)] 
-                  = new Collection((universe ?? Models.DefaultUniverse)))
+                : u.Models._factoriesByModelBases[typeof(TModelBase)] 
+                  = new Collection(u))
         )
       {
-        Id.Universe.Models._factories._add(this);
+        Universe.Models._factories._add(this);
       }
     }
   }

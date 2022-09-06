@@ -14,6 +14,21 @@ namespace Meep.Tech.XBam {
     /// A Type that can be added as context to a universe.
     /// </summary>
     public class ExtraContext : IExtraUniverseContextType {
+      Universe _universe;
+
+      /// <summary>
+      /// Settings base class for an extra context
+      /// </summary>
+      public abstract class Settings {
+
+        /// <summary>
+        /// The Universe these settings belong to.
+        /// </summary>
+        public Universe Universe {
+          get;
+          internal set;
+        }
+      }
 
       ///<summary><inheritdoc/></summary>
       public string Id {
@@ -22,8 +37,28 @@ namespace Meep.Tech.XBam {
 
       ///<summary><inheritdoc/></summary>
       public Universe Universe {
+        get => _universe;
+        internal set {
+          _universe = value;
+          if (Options is not null) {
+            Options.Universe = value;
+          }
+        }
+      }
+
+      /// <summary>
+      /// The options for this extra context
+      /// </summary>
+      public Settings? Options {
         get;
-        internal set;
+        protected set;
+      }
+
+      /// <summary>
+      /// Used to make new extra contexts.
+      /// </summary>
+      public ExtraContext(Settings? options = null) {
+        Options = options;
       }
 
       #region Overrideable Loader Step Callbacks
@@ -41,12 +76,12 @@ namespace Meep.Tech.XBam {
       /// <summary>
       /// Code that's executed before initialization of the model serializer
       /// </summary>
-      internal protected virtual Action<Universe> OnModelSerializerInitializationStart { get; protected set; } = null;
+      internal protected virtual Action<Universe> OnLoaderDefaultExtraContextsInitializationStart { get; protected set; } = null;
 
       /// <summary>
       /// Code that's executed after  initialization of the model serializer
       /// </summary>
-      internal protected virtual Action<Universe> OnModelSerializerInitializationComplete { get; protected set; } = null;
+      internal protected virtual Action<Universe> OnLoaderDefaultExtraContextsInitializationComplete { get; protected set; } = null;
 
       /// <summary>
       /// Code that's executed after the loader collects the initial assemblies to work on
@@ -211,19 +246,16 @@ namespace Meep.Tech.XBam {
       internal protected virtual Action OnLoaderAllModificationsComplete { get; protected set; } = null;
 
       /// <summary>
-      /// Executed once for each xbam auto build property created when scanning models.
+      /// Executed each time the ctor is set on an archetype.
+      /// May be executed more than once for the same archetype.
       /// </summary>
-      internal protected virtual Action<System.Type, AutoBuildAttribute, PropertyInfo> OnLoaderAutoBuildPropertyCreationStart { get; protected set; } = null;
+      internal protected virtual Action<Archetype> OnLoaderArchetypeModelConstructorSetStart { get; protected set; } = null;
 
       /// <summary>
-      /// Executed once for each xbam auto build property created when scanning models.
+      /// Executed each time the ctor is set on an archetype.
+      /// May be executed more than once for the same archetype.
       /// </summary>
-      internal protected virtual Action<
-        System.Type,
-        AutoBuildAttribute,
-        PropertyInfo,
-        (int, string, Func<IModel, IBuilder, IModel>)
-      > OnLoaderAutoBuildPropertyCreationComplete { get; protected set; } = null;
+      internal protected virtual Action<Archetype> OnLoaderArchetypeModelConstructorSetComplete { get; protected set; } = null;
 
       /// <summary>
       /// Executed once for each json property created when scanning models with the default contract resolver.
@@ -300,7 +332,7 @@ namespace Meep.Tech.XBam {
       /// </summary>
       protected void UpdateComponentsForArchetypes(Dictionary<string, Archetype.IComponent> updateComponentsByType, params Archetype[] archetypes)
         => Modifications._updateComponentsForArchetypes(
-          Universe, 
+          Universe,
           updateComponentsByType
             .ToDictionary(e => e.Key, e => new Func<Archetype.IComponent, Archetype.IComponent>(_ => e.Value)),
           archetypes
@@ -340,7 +372,6 @@ namespace Meep.Tech.XBam {
       protected void UpdateOrAddInitialModelComponentsForArchetypes(IEnumerable<Archetype> archetypes, Dictionary<string, Func<IComponent.IBuilder, IModel.IComponent>> newComponentInitializers)
         => Modifications._updateOrAddInitialModelComponentsForArchetypes(Universe, newComponentInitializers, archetypes.ToArray());
 
-
       /// <summary>
       /// Update the existing component from the given archetypes.
       /// </summary>
@@ -355,7 +386,7 @@ namespace Meep.Tech.XBam {
       /// Update or add the given component from the given archetypes.
       /// </summary>
       protected void UpdateOrAddInitialModelComponentsForArchetypes(IEnumerable<Archetype> archetypes, Dictionary<string, Func<Func<IComponent.IBuilder, IModel.IComponent>, IComponent.IBuilder, IModel.IComponent>> newComponentInitializers)
-        =>  Modifications._updateOrAddInitialModelComponentsForArchetypes(Universe, newComponentInitializers, archetypes.ToArray());
+        => Modifications._updateOrAddInitialModelComponentsForArchetypes(Universe, newComponentInitializers, archetypes.ToArray());
 
       #endregion
 

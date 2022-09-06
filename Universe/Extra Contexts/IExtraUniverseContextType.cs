@@ -8,11 +8,19 @@
     /// <summary>
     /// Unique id.
     /// </summary>
-    string Id { get; }
+    string Id 
+      { get; }
 
     /// <summary>
     /// The universe this context is for.
     /// </summary>
-    Universe Universe { get; }
+    Universe Universe 
+      { get; }
+
+    /// <summary>
+    /// The options passed in to this extra context on creation.
+    /// </summary>
+    Universe.ExtraContext.Settings? Options
+      { get; }
   }
 }

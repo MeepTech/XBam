@@ -1,4 +1,4 @@
-﻿namespace Meep.Tech.XBam.Configuration {
+﻿namespace Meep.Tech.XBam.Logging {
   public partial class ModelLog {
 
     public partial struct Entry {
@@ -15,8 +15,8 @@
 
         public static ActionType Serialized { get; } = new(nameof(Serialized), "Default");
 
-        protected ActionType(string key, string prefix, Universe universe = null)
-          : base(prefix + "." + key, universe) { }
+        protected ActionType(string key, string prefix)
+          : base(prefix + "." + key) { }
       }
     }
   }

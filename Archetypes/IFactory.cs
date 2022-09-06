@@ -5,7 +5,7 @@ namespace Meep.Tech.XBam {
   /// <summary>
   /// These make models
   /// </summary>
-  public partial interface IFactory {
+  public partial interface IFactory : IResource {
 
     /// <summary>
     /// The Id of this Archetype.
@@ -17,27 +17,9 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Overrideable Model Constructor
     /// </summary>
-    internal Func<IBuilder, IModel> _modelConstructor {
+    internal Func<IBuilder, IModel?> _modelConstructor {
       get;
       set;
     }
-
-    /// <summary>
-    /// Base make helper
-    /// </summary>
-    /// <returns></returns>
-    protected internal abstract IModel Make();
-
-    /// <summary>
-    /// Base make helper
-    /// </summary>
-    /// <returns></returns>
-    protected internal abstract IModel Make(IBuilder builder);
-
-    /// <summary>
-    /// Base make helper
-    /// </summary>
-    /// <returns></returns>
-    protected internal abstract IModel Make(Func<IBuilder, IBuilder> builderConfiguration);
   }
 }

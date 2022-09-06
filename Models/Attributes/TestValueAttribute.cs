@@ -43,7 +43,7 @@ namespace Meep.Tech.XBam {
           }
           else if (attribute is TestValueIsTestModel) {
             try {
-              attribute._value ??= Configuration.Loader.GetOrBuildTestModel(property.PropertyType, factoryType.Id.Universe);
+              attribute._value ??= factoryType.Universe.Loader.GetOrBuildTestModel(property.PropertyType, factoryType.Universe);
             }
             catch (Exception ex) {
               throw new Configuration.Loader.MissingDependencyForModelException(

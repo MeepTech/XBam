@@ -42,14 +42,6 @@ namespace Meep.Tech.XBam {
     }
 
     /// <summary>
-    /// The model serializer instance for this universe
-    /// </summary>
-    public Model.Serializer ModelSerializer {
-      get;
-      internal set;
-    }
-
-    /// <summary>
     /// Archetypes data
     /// </summary>
     public ArchetypesData Archetypes {
@@ -87,7 +79,7 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Make a new universe of Archetypes
     /// </summary>
-    public Universe(Loader loader, string nameKey = null) {
+    public Universe(Loader loader, string? nameKey = null) {
       Key = nameKey ?? Key;
       Loader = loader;
       Loader.Universe = this;
@@ -117,6 +109,15 @@ namespace Meep.Tech.XBam {
 
       // add the context to all types in it's inheritance chain that aren't already taken.
       var currentContextType = typeof(TExtraContext);
+      if (currentContextType == typeof(ExtraContext)) {
+        currentContextType = extraContext.GetType();
+      }
+
+      if (currentContextType == typeof(ExtraContext)) {
+        throw new InvalidOperationException($"Cannot Set an Extra Context of Base Type: {nameof(ExtraContext)}");
+      }
+
+      var contextBaseType = currentContextType;
       while (currentContextType is not null && currentContextType != typeof(ExtraContext)) {
         if (!ExtraContexts._extraContexts.TryAdd(currentContextType, extraContext)) {
           break;
@@ -128,7 +129,7 @@ namespace Meep.Tech.XBam {
       // check for interfaces that implement it too
       foreach(
         Type extraTypeInterface 
-          in typeof(TExtraContext)
+          in contextBaseType
             .GetInterfaces()
             .Where(i => typeof(IExtraUniverseContextType).IsAssignableFrom(i) 
               && i != typeof(IExtraUniverseContextType))
@@ -154,7 +155,7 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Get an extra context item that was assigned to this universe.
     /// </summary>
-    public bool TryToGetExtraContext<TExtraContext>(out TExtraContext extraContext)
+    public bool TryToGetExtraContext<TExtraContext>(out TExtraContext? extraContext)
       where TExtraContext : IExtraUniverseContextType {
       if (ExtraContexts._extraContexts.TryGetValue(typeof(TExtraContext), out var found)) {
         extraContext = (TExtraContext)(IExtraUniverseContextType)found;
@@ -168,13 +169,25 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Get an extra context item that was assigned to this universe.
     /// </summary>
+    public TExtraContext? TryToGetExtraContext<TExtraContext>()
+      where TExtraContext : IExtraUniverseContextType {
+      if (ExtraContexts._extraContexts.TryGetValue(typeof(TExtraContext), out var found)) {
+        return (TExtraContext)(IExtraUniverseContextType)found;
+      }
+
+      return default;
+    }
+
+    /// <summary>
+    /// Get an extra context item that was assigned to this universe.
+    /// </summary>
     public TExtraContext GetExtraContext<TExtraContext>()
       where TExtraContext : IExtraUniverseContextType {
       try {
         return (TExtraContext)(ExtraContexts._extraContexts[typeof(TExtraContext)] as IExtraUniverseContextType);
       }
-      catch (System.Collections.Generic.KeyNotFoundException keyNotFoundE) {
-        throw new KeyNotFoundException($"No extra context of the type {typeof(TExtraContext).FullName} added to this universe. Further ECSBAM configuration may be required.", keyNotFoundE);
+      catch (KeyNotFoundException e) {
+        throw new KeyNotFoundException($"No extra context of the type {typeof(TExtraContext).FullName} added to this universe. Further ECSBAM configuration may be required.", e);
       }
     }
   }

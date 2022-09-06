@@ -1,5 +1,10 @@
-﻿using Meep.Tech.Collections.Generic;
+﻿using KellermanSoftware.CompareNetObjects;
+using Meep.Tech.Collections.Generic;
+using Meep.Tech.XBam.Cloning;
+using Meep.Tech.XBam.Cloning.Configuration;
+using Meep.Tech.XBam.Json.Configuration;
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -126,10 +131,18 @@ namespace Meep.Tech.XBam.Configuration {
       /// The name to configure for the current universe.
       /// This will be used as it's unique key in the db
       /// </summary>
-      public string UniverseName {
+      public string? UniverseName {
         get;
         set;
       }
+
+      /// <summary>
+      /// If this universe registers lazily initialized enums.
+      /// </summary>
+      public bool AllowLazyEnumerationRegistration {
+        get;
+        init;
+      } = true;
 
       /// <summary>
       /// A pre-settable setting for specifying how to order certain mods for loading.
@@ -145,10 +158,65 @@ namespace Meep.Tech.XBam.Configuration {
       /// The default model serializer options
       /// </summary>
       [JsonIgnore]
-      public Model.Serializer.Settings ModelSerializerOptions {
+      public Dictionary<
+        System.Type,
+        (
+          Func<Universe.ExtraContext.Settings?, Universe.ExtraContext> contextConstructor,
+          Func<Universe, Universe.ExtraContext.Settings?> optionsConstructor
+        )
+      > DefaultExtraContexts {
+        get;
+      } = new() {
+        {
+          typeof(ModelJsonSerializerContext),
+          (
+            new(o => new ModelJsonSerializerContext((ModelJsonSerializerContext.Settings?)o)),
+            u => new ModelJsonSerializerContext.Settings()
+          )
+        },{
+          typeof(ModelCopyContext),
+          (
+            new(o => new ModelCopyContext((ModelCopyContext.Settings?)o)),
+            u => new ModelCopyContext.Settings()
+          )
+        },{
+          typeof(AutoBuilderContext),
+          (
+            new(o => new AutoBuilderContext()),
+            u => null
+          )
+        }
+      };
+
+
+      /// <summary>
+      /// The default config used to compare model objects
+      /// </summary>
+      public ComparisonConfig DefaultComparisonConfig {
         get;
         set;
-      } = new Model.Serializer.Settings();
+      } = new ComparisonConfig {
+        AttributesToIgnore = new List<Type> {
+            typeof(ModelComponentsProperty)
+          },
+        IgnoreObjectTypes = true
+#if DEBUG
+        ,
+        DifferenceCallback = x => {
+          if (System.Diagnostics.Debugger.IsAttached) {
+            System.Diagnostics.Debugger.Break();
+          }
+        }
+#endif
+      };
+
+      /// <summary>
+      /// Delegates used to try to re-targed the model type when the test build of a model type fails inside of Loader._tryToCalculateAcurateBuilderType.
+      /// Indexed by the exception type.
+      /// </summary>
+      public Dictionary<System.Type, TestModelBuilderTypeMismatchExceptionHandler> TestModelBuilderTypeMismatchExceptionHandlers {
+        get;
+      } = new();
     }
   }
 }

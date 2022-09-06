@@ -1,4 +1,5 @@
 ﻿using Meep.Tech.Collections.Generic;
+using Meep.Tech.XBam.Json;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -85,6 +86,18 @@ namespace Meep.Tech.XBam {
     /// </summary>
     public class ComponentsToJsonConverter : JsonConverter<ReadOnlyModelComponentCollection> {
 
+      /// <summary>
+      /// The universe this is for
+      /// </summary>
+      public Universe Universe {
+        get;
+      }
+
+      ///<summary><inheritdoc/></summary>
+      public ComponentsToJsonConverter(Universe universe) {
+        Universe = universe;
+      }
+
       public override void WriteJson(JsonWriter writer, [AllowNull] ReadOnlyModelComponentCollection value, JsonSerializer serializer) {
         writer.WriteStartObject();
         value.ForEach(e => {
@@ -103,7 +116,7 @@ namespace Meep.Tech.XBam {
 
         Dictionary<string, IModel.IComponent> components = new();
         foreach (var (key, componentToken) in componentsJson) {
-          components.Add(key, IComponent.FromJson((JObject)componentToken, ontoParent: existingValue.Storage) as IModel.IComponent);
+          components.Add(key, Deserialize.ToComponent((JObject)componentToken, ontoParent: (IReadableComponentStorage?)existingValue.Storage) as IModel.IComponent);
         }
         
         return new ReadOnlyModelComponentCollection(existingValue.Storage, components);

@@ -16,7 +16,9 @@ namespace Meep.Tech.XBam {
       /// <summary>
       /// link to the parent universe
       /// </summary>
-      Universe _universe;
+      public Universe Universe {
+        get;
+      }
 
       /// <summary>
       /// All archetypes:
@@ -57,9 +59,9 @@ namespace Meep.Tech.XBam {
       /// Doesn't include Branch collections.
       /// </summary>
       public IEnumerable<Archetype.Collection> RootCollections {
-        get => _collectionsByRootArchetype.Values;
+        get => _collectionsByRootArchetype.Values!;
       }
-      internal readonly Dictionary<string, Archetype.Collection> _collectionsByRootArchetype
+      internal readonly Dictionary<string, Archetype.Collection?> _collectionsByRootArchetype
         = new();
 
       /// <summary>
@@ -72,7 +74,7 @@ namespace Meep.Tech.XBam {
         = new();
 
       internal ArchetypesData(Universe universe) {
-        _universe = universe;
+        Universe = universe;
         All = new Archetype.Collection(universe);
         _collectionsByRootArchetype.Add(typeof(Archetype).FullName, All);
       }
@@ -81,10 +83,11 @@ namespace Meep.Tech.XBam {
       /// Get a collection registered to an archetype root:
       /// </summary>
       public Archetype.Collection GetCollection(Archetype root)
-        => _collectionsByRootArchetype.TryGetValue(root.Id.Key, out Archetype.Collection collection)
+        => (_collectionsByRootArchetype.TryGetValue(root.Id.Key, out Archetype.Collection collection)
           ? collection
           // recurse until it's found. This should throw a null exception eventually if one isn't found.
-          : GetCollection(root.Type.BaseType);
+          : GetCollection(root.Type.BaseType))
+        ?? throw new Exception($"No Collection Found for Archetype.");
 
       /// <summary>
       /// Get a collection registered to an archetype root:
@@ -112,19 +115,20 @@ namespace Meep.Tech.XBam {
           ? _collectionsByRootArchetype.TryGetValue(root?.FullName ?? "", out Archetype.Collection collection)
             ? collection
             // recurse until it's found. This should throw a null exception eventually if one isn't found.
-            : GetCollection(root.BaseType)
+            : (_collectionsByRootArchetype[root.FullName] = GetCollection(root.BaseType))
+              ?? throw new Exception($"No Collection Found for Archetype.")
           : throw new Exception($"Invalid Archetype Base Type Provided.");
 
       /// <summary>
       /// Get a collection registered to an archetype type.
       /// returns null if not found
       /// </summary>
-      public Archetype.Collection TryToGetCollection(System.Type root)
+      public Archetype.Collection? TryToGetCollection(System.Type root)
         => root is not null
           ? _collectionsByRootArchetype.TryGetValue(root?.FullName ?? "", out Archetype.Collection collection)
             ? collection
             // recurse until it's found. This should throw a null exception eventually if one isn't found.
-            : TryToGetCollection(root.BaseType)
+            : (_collectionsByRootArchetype[root.FullName] = TryToGetCollection(root.BaseType))
           : null;
 
       /// <summary>
@@ -150,7 +154,7 @@ namespace Meep.Tech.XBam {
             }
 
             // if we couldn;t make the type into an archetype (it may be a base type), we need to get any default archetype from it's collection:
-            Archetype.Collection collection = GetCollection(rootArchetypeType);
+            Archetype.Collection? collection = TryToGetCollection(rootArchetypeType);
             if (collection is null) {
               throw new KeyNotFoundException($"Could not find an archetype collection the model Type: {modelBaseType}");
             }
@@ -164,7 +168,7 @@ namespace Meep.Tech.XBam {
           else throw new KeyNotFoundException($"Could not find a Root Archetype for the Base Model Type: {modelBaseType}");
         }
         else {
-          return _universe.Models.GetFactory(modelBaseType) as Archetype;
+          return Universe.Models.GetFactory(modelBaseType) as Archetype;
         }
       }
 
@@ -215,11 +219,11 @@ namespace Meep.Tech.XBam {
 
       internal void _registerArchetype(Archetype archetype, Archetype.Collection collection) {
         // Register to it's id
-        archetype.Id.Archetype = archetype;
+        archetype.Id._registerForUniverse(Universe, archetype);
 
         // Register to collection:
         collection._add(archetype);
-        archetype.TypeCollection = collection;
+        archetype.Types = collection;
 
         // Add to All:
         All._add(archetype);
@@ -239,15 +243,15 @@ namespace Meep.Tech.XBam {
         }
 
         // Register to collection:
-        archetype.TypeCollection._remove(archetype);
-        archetype.TypeCollection = null;
+        archetype.Types._remove(archetype);
+        archetype.Types = null;
 
         // de-register it from it's id
-        archetype.Id.Archetype = null;
+        archetype.Id._deRegisterForUniverse(Universe);
       }
 
       internal void _registerCollection(Archetype.Collection collection, Type rootArchetypeType = null) {
-        if(!(_universe?.Archetypes is null || _universe?.Models is null || _universe?.Components is null)) {
+        if(!(Universe?.Archetypes is null || Universe?.Models is null || Universe?.Components is null)) {
           if(collection is Archetype.Collection.IBranch) {
             _branchedCollectionsByBranchArchetype.Add(rootArchetypeType.FullName, collection);
           } else

@@ -1,10 +1,11 @@
-﻿using Meep.Tech.XBam.Utility;
+﻿using Meep.Tech.XBam.Json;
+using Meep.Tech.XBam.Utility;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Meep.Tech.XBam.Configuration {
+namespace Meep.Tech.XBam.Logging {
   public partial class ModelLog {
 
     /// <summary>

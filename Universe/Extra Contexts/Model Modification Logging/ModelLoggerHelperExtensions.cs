@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Meep.Tech.XBam.Configuration {
+namespace Meep.Tech.XBam.Logging {
   public static class ModelLoggerHelperExtensions {
 
     /// <summary>

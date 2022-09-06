@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace Meep.Tech.XBam {
@@ -16,7 +17,7 @@ namespace Meep.Tech.XBam {
       /// The Name of this Identity.
       /// By default, this is used to generate the key.
       /// </summary>
-      public string Name { 
+      public string Name {
         get;
       }
 
@@ -28,12 +29,19 @@ namespace Meep.Tech.XBam {
       } string _castKey;
 
       /// <summary>
-      /// The archetype this id is for
+      /// The 'Default' Universe's archetype this id is for
       /// </summary>
+      /// <seealso cref="ArchetypeFor"/>
       [JsonIgnore]
-      public Archetype Archetype {
+      public Archetype Archetype
+        => Universe.Default.Archetypes.All.ById[Key];
+
+      /// <summary>
+      /// The archetype for a given universe
+      /// </summary>
+      /// <seealso cref="Archetype"/>
+      public abstract IReadOnlyDictionary<Universe, Archetype> ArchetypeFor {
         get;
-        internal set;
       }
 
       /// <summary>
@@ -49,15 +57,18 @@ namespace Meep.Tech.XBam {
       /// </summary>
       protected Identity(
         string name,
-        string key = null,
-        Universe universe = null
-      ) : base(key ?? name, universe) {
+        string key = null
+      ) : base(key ?? name) {
         Name = name;
       }
 
       ///<summary><inheritdoc/></summary>
       protected internal override object UniqueIdCreationLogic(object uniqueIdentifier) 
         => Regex.Replace($"{uniqueIdentifier}", @"\s+", "");
+
+      internal abstract void _registerForUniverse(Universe universe, Archetype archetype);
+
+      internal abstract void _deRegisterForUniverse(Universe universe);
     }
   }
 
@@ -76,6 +87,14 @@ namespace Meep.Tech.XBam {
     /// Can be used as a static key.
     /// </summary>
     public new class Identity : Archetype.Identity {
+      Dictionary<Universe, Archetype> _archetypesByUniverse
+        = new();
+
+      /// <summary>
+      /// Used to get the archetype for a given universe.
+      /// </summary>
+      public override IReadOnlyDictionary<Universe, Archetype> ArchetypeFor 
+        => _archetypesByUniverse;
 
       /// <summary>
       /// Make a new identiy for this Archetype Base Type
@@ -83,8 +102,8 @@ namespace Meep.Tech.XBam {
       /// <param name="name">Used to generate the final part of the key. Spaces are removed before then.</param>
       /// <param name="keyPrefixEndingAdditions">Added to the key right before the end here: Type..{keyPrefixEndingAdditions}.name</param>
       /// <param name="keyOverride">can be used to fully replace the key if you want a different key and name</param>
-      public Identity(string name, string keyPrefixEndingAdditions = null, Universe universe = null, string keyOverride = null) 
-        : base(name, keyOverride ?? $"{typeof(TModelBase).FullName}.{keyPrefixEndingAdditions ?? ""}{(string.IsNullOrEmpty(keyPrefixEndingAdditions) ? "" : ".")}{name}", universe) {}
+      public Identity(string name, string keyPrefixEndingAdditions = null, string keyOverride = null) 
+        : base(name, keyOverride ?? $"{typeof(TModelBase).FullName}.{keyPrefixEndingAdditions ?? ""}{(string.IsNullOrEmpty(keyPrefixEndingAdditions) ? "" : ".")}{name}") {}
 
       /// <summary>
       /// Make a new identiy for this Archetype Base Type
@@ -93,8 +112,16 @@ namespace Meep.Tech.XBam {
       /// <param name="keyPrefixEndingAdditions">Added to the key right before the end here: Type..{keyPrefixEndingAdditions}.name</param>
       /// <param name="baseKeyStringOverride">Overrides the type fullname.</param>
       /// <param name="keyOverride">can be used to fully replace the key if you want a different key and name</param>
-      protected Identity(string name, string keyPrefixEndingAdditions, string baseKeyStringOverride, Universe universe = null, string keyOverride = null) 
-        : base(name, keyOverride ?? $"{baseKeyStringOverride ?? typeof(TModelBase).FullName}{(baseKeyStringOverride != "" ? "." :"")}{keyPrefixEndingAdditions ?? ""}{(string.IsNullOrEmpty(keyPrefixEndingAdditions) ? "" : ".")}{name}", universe) {}
+      protected Identity(string name, string keyPrefixEndingAdditions, string baseKeyStringOverride, string keyOverride = null) 
+        : base(name, keyOverride ?? $"{baseKeyStringOverride ?? typeof(TModelBase).FullName}{(baseKeyStringOverride != "" ? "." :"")}{keyPrefixEndingAdditions ?? ""}{(string.IsNullOrEmpty(keyPrefixEndingAdditions) ? "" : ".")}{name}") {}
+
+      internal override void _registerForUniverse(Universe universe, Archetype archetype) {
+        _archetypesByUniverse.Add(universe, archetype);
+      }
+
+      internal override void _deRegisterForUniverse(Universe universe) {
+        _archetypesByUniverse.Remove(universe);
+      }
     }
   }
 }

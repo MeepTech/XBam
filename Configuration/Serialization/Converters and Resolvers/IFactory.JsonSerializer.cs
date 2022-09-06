@@ -17,8 +17,8 @@ namespace Meep.Tech.XBam {
     public class JsonStringConverter : JsonConverter<IFactory> {
 
       public override void WriteJson(JsonWriter writer, [AllowNull] IFactory value, JsonSerializer serializer) {
-        writer.WriteValue(value.Id.Key + (!string.IsNullOrEmpty(value.Id.Universe.Key)
-          ? "@" + value.Id.Universe.Key
+        writer.WriteValue(value.Id.Key + (!string.IsNullOrEmpty(value.Universe.Key)
+          ? "@" + value.Universe.Key
           : "")
         );
       }

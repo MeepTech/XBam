@@ -11,7 +11,7 @@ namespace Meep.Tech.XBam {
     /// This is the base interface.
     /// </summary>
     public new interface IFactory
-      : IModel.IFactory {
+      : IModel.IFactory, IBuilderSource {
 
       /// <summary>
       /// The key for the component type.
@@ -31,15 +31,14 @@ namespace Meep.Tech.XBam {
       /// Make a default component for an archetype.
       /// </summary>
       /// <returns></returns>
-      public new IComponent Make()
-        => (this as Archetype).Make<IComponent>();
+      public IComponent.IBuilder Build()
+        => (IBuilder)((IBuilderSource)this).Build();
 
       /// <summary>
-      /// Make a default component for an archetype.
+      /// Make a component from this factory.
       /// </summary>
-      /// <returns></returns>
-      public IComponent Make(IBuilder parentBuilder)
-        => (this as Archetype).Make<IComponent>(parentBuilder);
+      public IComponent Make(IBuilder? builder = null)
+        => (IComponent)((Archetype)this).Make(builder);
     }
   }
 
@@ -92,17 +91,15 @@ namespace Meep.Tech.XBam {
         init => ModelInitializer = builder => value((Builder)builder);
       }
 
-      public Factory(
-        Identity id,
-        Universe universe = null
-      )  : base(id, universe) {}
-
+      /// <summary>
+      /// Used to make a new factory during startup.
+      /// </summary>
       public Factory(
         Identity id,
         Universe universe,
-        HashSet<IComponent> archetypeComponents,
-        IEnumerable<Func<XBam.IBuilder, IModel.IComponent>> modelComponentCtors
-      )  : base(id, universe, archetypeComponents, modelComponentCtors) {}
+        HashSet<IComponent> archetypeComponents = null,
+        IEnumerable<Func<XBam.IBuilder, IModel.IComponent>> modelComponentCtors = null
+      )  : base(id, universe) {}
     }
   }
 }

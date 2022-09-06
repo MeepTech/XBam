@@ -266,7 +266,7 @@ namespace Meep.Tech.XBam {
         IComponent._setUniverse(ref toAdd, model.Universe);
       }
       else if(storage is Archetype archetype) {
-        IComponent._setUniverse(ref toAdd, archetype.Id.Universe);
+        IComponent._setUniverse(ref toAdd, archetype.Universe);
       }
     }
 

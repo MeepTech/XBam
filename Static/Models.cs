@@ -1,5 +1,7 @@
 ﻿using KellermanSoftware.CompareNetObjects;
 using System;
+using Meep.Tech.Reflection;
+using System.Linq;
 
 namespace Meep.Tech.XBam {
 
@@ -34,6 +36,19 @@ namespace Meep.Tech.XBam {
     /// </summary>
     public static CompareLogic GetCompareLogic(System.Type type)
       => Models.DefaultUniverse.Models.GetCompareLogic(type);
+
+    /// <summary>
+    /// For models form interfaces
+    /// </summary>
+    public static class FromInterface<TModel> where TModel : Model.IFromInterface {
+
+      /// <summary>
+      /// Helper to get the collection for models from interfaces from the default universe:
+      /// </summary>
+      public static Archetype.Collection Types 
+        => Universe.Default.Archetypes.GetDefaultForModel<TModel>()
+          .Types;
+    }
   }
 
   /// <summary>

@@ -1,7 +1,7 @@
 ﻿using System;
 using Meep.Tech.Collections.Generic;
 
-namespace Meep.Tech.XBam.Configuration {
+namespace Meep.Tech.XBam.Logging.Configuration {
 
   /// <summary>
   /// Adds logging to models.
@@ -12,9 +12,11 @@ namespace Meep.Tech.XBam.Configuration {
     protected internal override Action<bool, Type, Archetype, Exception, bool> OnLoaderArchetypeInitializationComplete
       => (success, type, archetype, error, isSplayed) => {
         if (success && archetype is not null) {
-          AddInitialModelComponentToArchetypes(
+          AddInitialModelComponentsToArchetypes(
             archetype.AsSingleItemEnumerable(),
-            Components<ModelLog>.Key
+            new() {
+              { Components<ModelLog>.Key, null }
+            }
           );
         }
       };

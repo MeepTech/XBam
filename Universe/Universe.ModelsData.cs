@@ -12,6 +12,20 @@ namespace Meep.Tech.XBam {
     /// Data for the models in a Xbam universe.
     /// </summary>
     public class ModelsData {
+      /// <summary>
+      /// Cached model base types
+      /// </summary>
+      internal Dictionary<string, System.Type> _baseTypes
+        = new();
+      /// <summary>
+      /// Cached model base types
+      /// </summary>
+      internal Dictionary<IArchetype, System.Type> _modelTypesProducedByArchetypes
+        = new();
+      /// <summary>
+      /// The collection of all base model BuilderFactories.
+      /// </summary>
+      internal Archetype.Collection _factories;
 
       /// <summary>
       /// The number of different loaded model types.
@@ -39,28 +53,18 @@ namespace Meep.Tech.XBam {
         => _baseTypes.Values;
 
       /// <summary>
-      /// Cached model base types
-      /// </summary>
-      internal Dictionary<string, System.Type> _baseTypes
-        = new();
-
-      /// <summary>
-      /// Cached model base types
-      /// </summary>
-      internal Dictionary<Archetype, System.Type> _modelTypesProducedByArchetypes
-        = new();
-
-      /// <summary>
-      /// The collection of all base model BuilderFactories.
-      /// </summary>
-      internal Archetype.Collection _factories;
-
-      /// <summary>
       /// Link to the parent universe
       /// </summary>
-      public Universe Universe
-        => _universe;
-      Universe _universe;
+      public Universe Universe 
+        { get; }
+
+      /// <summary>
+      /// The comparison config from the loader settings.
+      /// </summary>
+      public ComparisonConfig ComparisonConfig {
+        get;
+        internal set;
+      }
 
       /// <summary>
       /// The collection of all base model BuilderFactories.
@@ -85,7 +89,7 @@ namespace Meep.Tech.XBam {
           = new Archetype.Collection(universe);
         universe.Archetypes._collectionsByRootArchetype
           .Add(typeof(IModel.IFactory).FullName, _factories);
-        _universe = universe;
+        Universe = universe;
       }
 
       /// <summary>
@@ -116,7 +120,7 @@ namespace Meep.Tech.XBam {
       /// <summary>
       /// Get the model type an archetype should produce by default.
       /// </summary>
-      public Type GetModelTypeProducedBy(Archetype archetype)
+      public Type GetModelTypeProducedBy(IArchetype archetype)
         => _modelTypesProducedByArchetypes[archetype];
 
       /// <summary>
@@ -205,7 +209,7 @@ namespace Meep.Tech.XBam {
       internal void _setFactory<TModel>(IModel.IFactory factory)
         where TModel : IModel<TModel> {
         if (!Universe.Loader.IsFinished) {
-          _universe.Models._factoriesByModelType[typeof(TModel)]
+          Universe.Models._factoriesByModelType[typeof(TModel)]
             = factory;
           Universe.Loader._initializedArchetypes.Add(factory as Archetype);
         }
@@ -327,7 +331,7 @@ namespace Meep.Tech.XBam {
       /// Makes the default compare logic using this universes settings
       /// </summary>
       CompareLogic _makeDefaultCompareLogic()
-        => new(_universe.ModelSerializer.Options.DefaultComparisonConfig);
+        => new(Universe.Models.ComparisonConfig);
 
       /// <summary>
       /// Make the default factory for a model type using reflection:
@@ -360,20 +364,22 @@ namespace Meep.Tech.XBam {
                 | System.Reflection.BindingFlags.Instance
                 | System.Reflection.BindingFlags.Public,
               null,
-              new Type[] { builderIdType, typeof(Universe) },
+              new Type[] { builderIdType, typeof(Universe), typeof(HashSet<Archetype.IComponent>), typeof(IEnumerable<Func<IBuilder, IModel.IComponent>>) },
               null
             );
 
-          return ctor.Invoke(new object[] {
-            Activator.CreateInstance(
-              builderIdType,
-              "Default",
-              "Component.Factory",
-              _universe,
+          return (IComponent.IFactory)
+            ctor.Invoke(new object[] {
+              Activator.CreateInstance(
+                builderIdType,
+                "Default",
+                "Component.Factory",
+                null
+              ),
+              Universe,
+              null,
               null
-            ),
-            _universe
-          }) as IComponent.IFactory;
+            });
         }
 
         // model
@@ -396,10 +402,7 @@ namespace Meep.Tech.XBam {
                 | System.Reflection.BindingFlags.Instance
                 | System.Reflection.BindingFlags.Public,
               null,
-              new Type[] {
-                builderIdType,
-                typeof(Universe)
-              },
+              new Type[] { builderIdType, typeof(Universe), typeof(HashSet<Archetype.IComponent>), typeof(IEnumerable<Func<IBuilder, IModel.IComponent>>) },
               null
             );
 
@@ -408,10 +411,11 @@ namespace Meep.Tech.XBam {
               builderIdType,
               "Default",
               "Model.Factory",
-              _universe,
               null
             ),
-            _universe
+            Universe,
+            null,
+            null
           }) as IModel.IFactory;
       }
 
@@ -463,11 +467,9 @@ namespace Meep.Tech.XBam {
         .constructor;
 
         // no args ctor:
-        if(!(ctor is null) && ctor.GetParameters().Length == 0) {
+        if(ctor is not null && ctor.GetParameters().Length == 0) {
           //TODO: is there a faster way to cache this?
-          return (builder) => {
-            return (IModel)ctor.Invoke(null);
-          };
+          return (builder) => (IModel)ctor.Invoke(null);
         }
 
         // structs may use the activator

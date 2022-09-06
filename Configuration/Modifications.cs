@@ -54,6 +54,12 @@ namespace Meep.Tech.XBam.Configuration {
       where TModel : IModel<TModel>
         => Universe.Models._setFactory<TModel>(factory);
 
+    /// <summary>
+    /// Used to set the model cosntructor in mods.
+    /// </summary>
+    protected void SetArchetypeModelConstructor(Archetype archetype, Func<IBuilder, IModel> constructor)
+      => archetype.ModelConstructor = constructor;
+
     #endregion
 
     #region Modify Components

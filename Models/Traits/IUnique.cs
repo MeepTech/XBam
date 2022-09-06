@@ -37,18 +37,6 @@ namespace Meep.Tech.XBam {
       => false;
 
     /// <summary>
-    /// Copy the model by serializing and deserializing it.
-    /// </summary>
-    public IUnique Copy(bool newUniqueId = true) {
-      IUnique copy = (IUnique)(this as IModel).Copy();
-      if (newUniqueId) {
-        copy.InitializeId();
-      }
-
-      return copy;
-    }
-
-    /// <summary>
     /// Used to internally initialize the unique id.
     /// You can use this in a custom constructor to avoid using a builder to build the unique id.
     /// </summary>

@@ -10,6 +10,10 @@ namespace Meep.Tech.XBam {
     /// Fetch a param from a collection, or the default if it's not provided, or the provided is a nullable and null is provided
     /// </summary>
     public static T Get<T>(this IBuilder builder, IModel.IBuilder.Param toFetch, T defaultValue = default) {
+      if (builder is null) {
+        return defaultValue;
+      }
+
       if (toFetch.ValueType != null && !toFetch.ValueType.IsAssignableFrom(typeof(T))) {
         throw new IModel.IBuilder.Param.MissmatchException($"Param {toFetch.Key}, is clamped to the type: {toFetch.ValueType.FullName}. {typeof(T).FullName} is not a valid type to try to fetch.");
       }
@@ -41,6 +45,11 @@ namespace Meep.Tech.XBam {
     /// Fetch a param from a collection, or the default if it's not provided, or the provided is a nullable and null is provided
     /// </summary>
     public static bool TryToGet<T>(this IBuilder builder, IModel.IBuilder.Param toFetch, out T result, T defaultValue = default) {
+      if (builder is null) {
+        result = defaultValue;
+        return false;
+      }
+
       if (toFetch.ValueType != null && !toFetch.ValueType.IsAssignableFrom(typeof(T))) {
         throw new IModel.IBuilder.Param.MissmatchException($"Param {toFetch.Key}, is clamped to the type: {toFetch.ValueType.FullName}. {typeof(T).FullName} is not a valid type to try to fetch.");
       }
@@ -77,27 +86,29 @@ namespace Meep.Tech.XBam {
     /// Fetch a param from a collection. The param cannot be left out, and no defaults will be replaced.
     /// </summary>
     public static T GetRequired<T>(this IBuilder builder, IModel.IBuilder.Param toFetch) {
-      if (toFetch.ValueType != null && !toFetch.ValueType.IsAssignableFrom(typeof(T))) {
-        throw new IModel.IBuilder.Param.MissmatchException($"Tried to get param as type {typeof(T).FullName}, but the provided Param object expects a value of Type: {toFetch.ValueType.FullName}.");
-      }
-      if (builder.TryToGet(toFetch.Key, out object value)) {
-        // if the value is of the requested type, return it
-        if (value is T typedValue) {
-          return typedValue;
+      if (builder is not null) {
+        if (toFetch.ValueType != null && !toFetch.ValueType.IsAssignableFrom(typeof(T))) {
+          throw new IModel.IBuilder.Param.MissmatchException($"Tried to get param as type {typeof(T).FullName}, but the provided Param object expects a value of Type: {toFetch.ValueType.FullName}.");
         }
+        if (builder.TryToGet(toFetch.Key, out object value)) {
+          // if the value is of the requested type, return it
+          if (value is T typedValue) {
+            return typedValue;
+          }
 
-        // if the provided value is null, and this is nullable, return the provided null
-        bool canBeNull = !toFetch.ValueType.IsValueType || (Nullable.GetUnderlyingType(toFetch.ValueType) != null);
-        if (canBeNull && value == null) {
-          return default;
-        }
+          // if the provided value is null, and this is nullable, return the provided null
+          bool canBeNull = !toFetch.ValueType.IsValueType || (Nullable.GetUnderlyingType(toFetch.ValueType) != null);
+          if (canBeNull && value == null) {
+            return default;
+          }
 
-        // See if this can be cast to the valuetype of the param, and return it if it can.
-        try {
-          return (T)value.CastTo(toFetch.ValueType);
-        }
-        catch (Exception e) {
-          throw new IModel.IBuilder.Param.MissmatchException($"Tried to get param: {toFetch.ExternalId}, as Type: {typeof(T).FullName}. The provided invalid value has Type {value?.GetType().FullName ?? "null"}, but should be of Type: {toFetch.ValueType}.", e);
+          // See if this can be cast to the valuetype of the param, and return it if it can.
+          try {
+            return (T)value.CastTo(toFetch.ValueType);
+          }
+          catch (Exception e) {
+            throw new IModel.IBuilder.Param.MissmatchException($"Tried to get param: {toFetch.ExternalId}, as Type: {typeof(T).FullName}. The provided invalid value has Type {value?.GetType().FullName ?? "null"}, but should be of Type: {toFetch.ValueType}.", e);
+          }
         }
       }
 
@@ -243,8 +254,8 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Check if this has the given param
     /// </summary>
-    public static bool Has(this IBuilder builder, string paramName, out System.Type paramType) { 
-      if (builder.TryToGet(paramName, out var parameter)) {
+    public static bool Has(this IBuilder builder, string paramName, out System.Type? paramType) { 
+      if (builder?.TryToGet(paramName, out var parameter) ?? false) {
         paramType = parameter.GetType();
         return true;
       }

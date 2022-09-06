@@ -1,5 +1,6 @@
 ﻿using Meep.Tech.Reflection;
-using Meep.Tech.XBam.Configuration;
+using Meep.Tech.XBam.Logging;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,7 +17,7 @@ namespace Meep.Tech.XBam {
       /// <summary>
       /// The parent model.
       /// </summary>
-      IModel Parent {
+      IModel? Parent {
         get;
         internal set;
       }
@@ -24,28 +25,36 @@ namespace Meep.Tech.XBam {
       /// <summary>
       /// internal setter for parameters.
       /// </summary>
-      internal protected Dictionary<string, object> __parameters
+      internal protected Dictionary<string, object>? __parameters
         { set; }
 
-      internal protected static void InitalizeComponent(ref IComponent component, IBuilder @this, Archetype archetype = null, Universe universe = null) {
-        universe = @this?.Universe ?? universe;
-        archetype = @this?.Archetype ?? archetype;
+      /// <summary>
+      /// Used to initialize the component with or without a builder.
+      /// </summary>
+      internal protected static void InitalizeComponent(ref XBam.IComponent? component, IBuilder? @this, XBam.IReadableComponentStorage? ontoParent = null, Archetype? archetype = null, Universe? universe = null) {
+        universe = @this?.Universe ?? universe ?? throw new ArgumentNullException();
+        archetype = @this?.Archetype ?? archetype ?? throw new ArgumentNullException();
 
-        component ??= (IComponent)((XBam.IFactory)(@this?.Archetype ?? archetype))._modelConstructor(@this);
-        component = (IComponent)component.OnInitialized((@this?.Archetype ?? archetype), (@this?.Universe ?? universe), @this);
+        component ??= (XBam.IComponent)((XBam.IFactory)(@this?.Archetype ?? archetype))._modelConstructor(@this);
+
+        if (component is null) {
+          return;
+        }
+
+        component = (XBam.IComponent)component.OnInitialized((@this?.Archetype ?? archetype), (@this?.Universe ?? universe), @this);
 
         if (component is IUnique unique) {
-          component = (IComponent)unique.InitializeId(@this.TryToGet<string>(nameof(IUnique.Id)));
+          component = (XBam.IComponent)unique.InitializeId(@this?.TryToGet<string>(nameof(IUnique.Id)));
         }
 
-        if (component is IComponent.IKnowMyParentModel child) {
-          child.Container = (IReadableComponentStorage)@this.Parent;
+        if (component is IModel.IComponent.IKnowMyParentModel child) {
+          child.Container = (IReadableComponentStorage?)ontoParent ?? ((IReadableComponentStorage?)@this?.Parent);
         }
+         
+        component = (XBam.IComponent)(@this?.Archetype ?? archetype).ConfigureModel(@this, component);
 
-        component = (IComponent)(@this?.Archetype ?? archetype).ConfigureModel(@this, component);
-
-        component = (IComponent)component.OnFinalized(@this);
-        component = (IComponent)(@this?.Archetype ?? archetype).FinalizeModel(@this, component);
+        component = (XBam.IComponent)component.OnFinalized(@this);
+        component = (XBam.IComponent)(@this?.Archetype ?? archetype).FinalizeModel(@this, component);
       }
     }
   }
@@ -59,7 +68,7 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Default builder class for components. Pretty much the same as the model based one.
     /// </summary>
-    public new partial struct Builder : XBam.IBuilder<TComponentBase>, IComponent.IBuilder {
+    public new partial struct Builder : XBam.IBuilder<TComponentBase>, IBuilder {
       Dictionary<string, object> _parameters
         => __parameters ??= new();
       internal Dictionary<string, object> __parameters;
@@ -128,7 +137,7 @@ namespace Meep.Tech.XBam {
       /// </summary>
       public Builder(XBam.Archetype type, IModel parent = null, Universe universe = null) {
         Archetype = type;
-        Universe = universe ?? type.Id.Universe;
+        Universe = universe ?? type.Universe;
         Parent = parent;
         __parameters = null;
       }
@@ -138,7 +147,7 @@ namespace Meep.Tech.XBam {
       /// </summary>
       public Builder(XBam.Archetype type, IEnumerable<KeyValuePair<string, object>> @params, IModel parent = null, Universe universe = null) {
         Archetype = type;
-        Universe = universe ?? Archetype.Id.Universe;
+        Universe = universe ?? Archetype.Universe;
         Parent = parent;
         __parameters = @params is not null 
           ? new(@params) 
@@ -194,16 +203,16 @@ namespace Meep.Tech.XBam {
 
       ///<summary><inheritdoc/></summary>
       public TComponentBase Make() {
-        IComponent producedComponent = default;
+        XBam.IComponent producedComponent = default;
         IBuilder.InitalizeComponent(ref producedComponent, this);
 
         // loging
         producedComponent.TryToLog(
-          Configuration.ModelLog.Entry.ActionType.Built,
+          ModelLog.Entry.ActionType.Built,
           "null",
           this,
           new Dictionary<string, object>() {
-            { ModelLog.Entry.MetadataField.AutoBuilderUsed.Key, Archetype._modelAutoBuilderSteps?.Any() ?? false }
+            { ModelLog.Entry.MetadataField.AutoBuilderUsed.Key, Archetype.Universe.TryToGetExtraContext<Configuration.IModelAutoBuilder>()?.HasAutoBuilderSteps(Archetype) ?? false }
           }
         );
 
