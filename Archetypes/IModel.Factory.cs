@@ -60,16 +60,16 @@ namespace Meep.Tech.XBam {
       /// <summary>
       /// <inheritdoc/>
       /// </summary>
-      Func<XBam.IBuilder, IModel> XBam.IFactory._modelConstructor {
+      Func<XBam.IBuilder, IModel?> XBam.IFactory._modelConstructor {
         get => ModelConstructor is null
-          ? null
+          ? null!
           : builder => ModelInitializer((IBuilder<TModelBase>)builder);
         set {
           if (value is null) {
-            ModelInitializer = null;
+            ModelInitializer = null!;
           }
           else {
-            ModelInitializer = b => (TModelBase)value.Invoke(b);
+            ModelInitializer = b => (TModelBase?)value.Invoke(b);
           }
         }
       }

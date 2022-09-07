@@ -17,13 +17,13 @@ namespace Meep.Tech.XBam {
       public delegate Archetype Constructor(Enumeration @enum, Universe universe);
 
       // TODO: these can't be static to work correctly with universes.
-      internal static HashSet<Constructor> _splayedInterfaceTypesThatAllowLazyInitializations
+      internal static HashSet<Constructor>? _splayedInterfaceTypesThatAllowLazyInitializations
         = new();
       // TODO: these can't be static to work correctly with universes.
       internal static Dictionary<System.Type, Dictionary<System.Type, Dictionary<System.Type, Constructor>>> _splayedArchetypeCtorsByEnumBaseTypeAndEnumTypeAndSplayType
         = new();
       // TODO: these can't be static to work correctly with universes.
-      internal static Dictionary<System.Type, HashSet<Enumeration>> _completedEnumsByInterfaceBase
+      internal static Dictionary<System.Type, HashSet<Enumeration>>? _completedEnumsByInterfaceBase
         = new();
 
       /// <summary>

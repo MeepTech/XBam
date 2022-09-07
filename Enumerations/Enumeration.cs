@@ -145,7 +145,7 @@ namespace Meep.Tech.XBam {
 
     ///<summary><inheritdoc/></summary>
     public static bool operator ==(Enumeration? a, Enumeration? b)
-      => (a is null && b is null) || (a?.Equals(b) ?? false);
+      => a?.ExternalId == b?.ExternalId;
 
     ///<summary><inheritdoc/></summary>
     public static bool operator !=(Enumeration? a, Enumeration? b)

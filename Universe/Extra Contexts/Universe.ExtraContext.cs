@@ -238,7 +238,7 @@ namespace Meep.Tech.XBam {
       /// <summary>
       /// Code that's executed when a modification finishes loading or fails to load
       /// </summary>
-      internal protected virtual Action<bool, System.Type, Modifications, Exception?>? OnLoaderModificationComplete { get; protected set; } = null;
+      internal protected virtual Action<bool, System.Type, Modifications?, Exception?>? OnLoaderModificationComplete { get; protected set; } = null;
 
       /// <summary>
       /// Code that's executed when modifications are done loading, before all types are finalized.

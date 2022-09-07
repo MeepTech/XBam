@@ -587,10 +587,10 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Overrideable Model Construction logic.
     /// </summary>
-    protected internal override Func<IBuilder, IModel?> ModelConstructor { 
+    protected internal override Func<IBuilder, IModel?> ModelConstructor {
       get;
       internal set;
-    }
+    } = null!;
 
     /// <summary>
     /// Model Constructon and Initialization logic.
@@ -602,9 +602,9 @@ namespace Meep.Tech.XBam {
           throw new InvalidOperationException($"Tried to set constructor for Archetype:{Id.Key} while the loader was sealed");
         }
 
-        Universe.ExtraContexts.OnLoaderArchetypeModelConstructorSetStart(this);
+        Universe.ExtraContexts.OnLoaderArchetypeModelConstructorSetStart!(this);
         ModelConstructor = b => value.Invoke((IBuilder<TModelBase>)b);
-        Universe.ExtraContexts.OnLoaderArchetypeModelConstructorSetComplete(this);
+        Universe.ExtraContexts.OnLoaderArchetypeModelConstructorSetComplete!(this);
       }
     }
 
@@ -629,16 +629,17 @@ namespace Meep.Tech.XBam {
 
     #region Build/Make
 
-    #region Builder Setup
+    #region Builder Setup 
+    IBuilder IBuilderSource.Build(IEnumerable<KeyValuePair<string, object>>? initialParams)
+      => Build();
+    internal Func<Archetype, IEnumerable<KeyValuePair<string, object>>?, Universe, IBuilder<TModelBase>> _defaultBuilderCtor
+      = null!;
 
     /// <summary>
     /// Start a model builder
     /// </summary>
     internal protected virtual IBuilder<TModelBase> Build(IEnumerable<KeyValuePair<string, object>>? initialParams = null)
       => (IBuilder<TModelBase>)GetGenericBuilderConstructor()(this, initialParams);
-
-    IBuilder IBuilderSource.Build(IEnumerable<KeyValuePair<string, object>> initialParams)
-      => Build();
 
     /// <summary>
     /// The default way a new builder is created.
@@ -650,7 +651,7 @@ namespace Meep.Tech.XBam {
           ? new IModel<TModelBase>.Builder(archetype, @params, universe)
           : new IModel<TModelBase>.Builder(archetype, universe); 
       set => _defaultBuilderCtor = value;
-    } internal Func<Archetype, IEnumerable<KeyValuePair<string, object>>?, Universe, IBuilder<TModelBase>> _defaultBuilderCtor;
+    }
 
     /// <summary>
     /// helper for getting the builder constructor from the non-generic base class
@@ -697,7 +698,7 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Make a new model via builder with the given params.
     /// </summary>
-    protected internal virtual TModelBase Make(IEnumerable<KeyValuePair<string, object>> @params)
+    protected internal virtual TModelBase Make(IEnumerable<KeyValuePair<string, object>>? @params)
       => BuildModel(Build(@params));
 
     /// <summary>
@@ -710,7 +711,7 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Make a new model via builder with the given params.
     /// </summary>
-    protected internal TModelBase Make(IEnumerable<(string key, object value)> @params)
+    protected internal TModelBase Make(IEnumerable<(string key, object value)>? @params)
       => Make(@params?.Select(entry => new KeyValuePair<string,object>(entry.key, entry.value)));
 
     /// <summary>

@@ -11,6 +11,6 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Can be used to make a new builder.
     /// </summary>
-    internal IBuilder Build(IEnumerable<KeyValuePair<string, object>> initialParams = null);
+    internal IBuilder Build(IEnumerable<KeyValuePair<string, object>>? initialParams = null);
   }
 }
