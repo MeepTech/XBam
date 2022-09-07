@@ -692,7 +692,8 @@ namespace Meep.Tech.XBam.Configuration {
 
     bool _tryToInitializeArchetype(Type systemType, out Exception e) {
       Universe.ExtraContexts.OnLoaderArchetypeInitializationStart(systemType, false);
-      /// Check dependencies. TODO: for a,m,&c, index items by their waiting dependency and when a type loads check if anything is waiting on it, and try to load it then.
+      // Check dependencies.
+      // TODO: for a,m,&c, index items by their waiting dependency and when a type loads check if anything is waiting on it, and try to load it then.
       if (Universe.Archetypes.Dependencies.TryGetValue(systemType, out var dependencies)) {
         Type firstUnloadedDependency
           = dependencies.FirstOrDefault(t => !_initializedTypes.Contains(t));
@@ -743,7 +744,6 @@ namespace Meep.Tech.XBam.Configuration {
         Universe.ExtraContexts.OnLoaderArchetypeInitializationComplete(false, systemType, null, e, false);
         return false;
       }
-
 
       // done initializing!
       _initializedTypes.Add(systemType);
@@ -903,9 +903,9 @@ namespace Meep.Tech.XBam.Configuration {
     Archetype _constructArchetypeFromSystemType(Type archetypeSystemType) {
       // see if we have a partially initialized archetype registered
       Archetype archetype = archetypeSystemType?.TryToGetAsArchetype();
-
-      /// Try to construct it.
-      /// The CTor should register it to it's main collection.
+      
+      //// Try to construct it.
+      //// The CTor should register it to it's main collection.
       try {
         if (archetype is null) {
           // Get ctor
@@ -1021,7 +1021,6 @@ namespace Meep.Tech.XBam.Configuration {
             = defaultModelConstructor;
         }
 
-
         // Try to make the default model, and register what that is:
         defaultModel
           = GetOrBuildTestModel(
@@ -1069,9 +1068,9 @@ namespace Meep.Tech.XBam.Configuration {
     /// <summary>
     /// Try to initialize a model type.
     /// </summary>
-    bool _tryToPreInitializeSimpleModel(Type systemType, out Exception e) {
+    bool _tryToPreInitializeSimpleModel(Type systemType, out Exception? e) {
       Universe.ExtraContexts.OnLoaderSimpleModelInitializationStart(systemType);
-      /// Check dependencies
+      // Check dependencies
       if (Universe.Models.Dependencies.TryGetValue(systemType, out var dependencies)) {
         Type firstUnloadedDependency
           = dependencies.FirstOrDefault(t => !_initializedTypes.Contains(t));
@@ -1111,9 +1110,9 @@ namespace Meep.Tech.XBam.Configuration {
     /// <summary>
     /// Try to initialize a model type.
     /// </summary>
-    bool _tryToInitializeModel(Type systemType, out Exception e) {
+    bool _tryToInitializeModel(Type systemType, out Exception? e) {
       Universe.ExtraContexts.OnLoaderModelFullInitializationStart(systemType);
-      /// Check dependencies
+      // Check dependencies
       if (Universe.Models.Dependencies.TryGetValue(systemType, out var dependencies)) {
         Type firstUnloadedDependency
           = dependencies.FirstOrDefault(t => !_initializedTypes.Contains(t));
@@ -1338,7 +1337,6 @@ namespace Meep.Tech.XBam.Configuration {
         throw;
       }
       Universe.ExtraContexts.OnLoaderBuildTestComponentComplete(true, systemType, testComponent, null);
-
 
       try {
         Universe.Components._baseTypes.Add(
@@ -1707,7 +1705,6 @@ namespace Meep.Tech.XBam.Configuration {
           return _generateTestParamsHelper(factoryType, modelType);
         }
       }
-
 
       return factoryType.DefaultTestParams;
     }

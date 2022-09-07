@@ -11,14 +11,15 @@ namespace Meep.Tech.XBam {
   /// A singleton data store and factory.
   /// </summary>
   public abstract partial class Archetype : IArchetype, IResource, IEquatable<Archetype>, IBuilderSource {
-    Func<IBuilder?, IModel> IFactory._modelConstructor 
-      {get; set;} = null!;
-    Type _modelTypeProduced;
+    Func<IBuilder, IModel?> IFactory._modelConstructor 
+      {get; set; } = null!;
+    Type _modelTypeProduced
+      = null!;
     internal HashSet<IComponent.ILinkedComponent> _modelLinkedComponents
       = new(); 
     internal Dictionary<string, object>? _defaultTestParams 
       = null;
-    HashSet<ITag> _tags 
+    readonly HashSet<ITag> _tags 
       = new();
     internal Dictionary<string, Func<XBam.IComponent.IBuilder, IModel.IComponent>> _initialUnlinkedModelComponents
       = new();
@@ -71,7 +72,7 @@ namespace Meep.Tech.XBam {
     public Collection Types {
       get;
       internal set;
-    }
+    } = null!;
 
     ///<summary><inheritdoc/></summary>
     public virtual IEnumerable<ITag> Tags
@@ -173,7 +174,7 @@ namespace Meep.Tech.XBam {
       => Id.GetHashCode();
 
     ///<summary><inheritdoc/></summary>
-    public override bool Equals(object obj) 
+    public override bool Equals(object? obj) 
       => (obj as Archetype)?.Equals(this) ?? false;
 
     ///<summary><inheritdoc/></summary>
@@ -192,7 +193,6 @@ namespace Meep.Tech.XBam {
     ///<summary><inheritdoc/></summary>
     public static bool operator !=(Archetype a, Archetype b)
       => !(a == b);
-
 
     #endregion
 
@@ -634,7 +634,7 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Start a model builder
     /// </summary>
-    internal protected virtual IBuilder<TModelBase> Build(IEnumerable<KeyValuePair<string, object>> initialParams = null)
+    internal protected virtual IBuilder<TModelBase> Build(IEnumerable<KeyValuePair<string, object>>? initialParams = null)
       => (IBuilder<TModelBase>)GetGenericBuilderConstructor()(this, initialParams);
 
     IBuilder IBuilderSource.Build(IEnumerable<KeyValuePair<string, object>> initialParams)
@@ -656,7 +656,7 @@ namespace Meep.Tech.XBam {
     /// helper for getting the builder constructor from the non-generic base class
     /// </summary>
     protected internal override Func<Archetype, IEnumerable<KeyValuePair<string, object>>?, IBuilder> GetGenericBuilderConstructor()
-      => (archetype, @params) => BuilderConstructor(archetype, @params, null);
+      => (archetype, @params) => BuilderConstructor(archetype, @params, Universe);
 
     #region Configuration Helper Functions
 
@@ -674,7 +674,6 @@ namespace Meep.Tech.XBam {
     protected internal virtual TModelBase FinalizeModel(IBuilder<TModelBase>? builder, TModelBase model)
       => model;
 
-
     /// <summary>
     /// Function that gets called by default in builders.
     /// Can be used to add logic during model setup as a shortcut.
@@ -688,7 +687,6 @@ namespace Meep.Tech.XBam {
     /// </summary>
     internal override IModel FinalizeModel(IBuilder? builder, IModel model)
       => FinalizeModel((IBuilder<TModelBase>?)builder, (TModelBase)model);
-
 
     #endregion
 

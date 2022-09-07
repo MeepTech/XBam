@@ -17,7 +17,6 @@ namespace Meep.Tech.XBam.Logging {
       return false;
     }
 
-
     /// <summary>
     /// Log something for this model.
     /// Throws if there's no logger.

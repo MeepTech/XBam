@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 
-
 namespace Meep.Tech.Collections.Generic {
   /// <summary>
   /// A collection of items, each indexed by a key and in list order by an index.

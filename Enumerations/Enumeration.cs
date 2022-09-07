@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
+using Meep.Tech.XBam.Json.Configuration;
 
 namespace Meep.Tech.XBam {
 
@@ -23,11 +24,6 @@ namespace Meep.Tech.XBam {
     /// </summary>
     object ExternalId { get; }
 
-    /*/// <summary>
-    /// The universe this enum is a part of
-    /// </summary>
-    Universe Universe { get; }*/
-
     /// <summary>
     /// The base type of this enumeration
     /// </summary>
@@ -38,14 +34,29 @@ namespace Meep.Tech.XBam {
   /// Base for a simple Enumerable value
   /// </summary>
   public abstract partial class Enumeration 
-    : IEnumeration, IEquatable<Enumeration>
+    : IEnumeration, IEquatable<Enumeration?>
   {
+    [JsonProperty(Enumerations.JsonObjectConverter.EnumTypePropertyName)]
+    string _typeKey 
+      => EnumBaseType.FullName;
 
     /// <summary>
     /// The current number of enums. Used for internal indexing.
     /// </summary>
     static int _currentMaxInternalEnumId 
       = 0;
+
+    /// <summary>
+    /// The perminant and unique external id
+    /// </summary>
+    [JsonProperty(Enumerations.JsonObjectConverter.EnumKeyPropertyName)]
+    public object ExternalId {
+      get => _externalId
+        ?? throw new InvalidOperationException($"Attempted to access uninitialized Enum of type {GetType()}");
+      private set {
+        _registerNew(value);
+      }
+    } object _externalId = null!;
 
     /// <summary>
     /// The assigned internal id of this archetype. This is only consistend within the current runtime and execution.
@@ -57,28 +68,9 @@ namespace Meep.Tech.XBam {
     } = -1;
 
     /// <summary>
-    /// The perminant and unique external id
-    /// </summary>
-    public object ExternalId {
-      get => _externalId
-        ?? throw new InvalidOperationException($"Attempted to access uninitialized Enum of type {GetType()}");
-      private set {
-        _registerNew(value);
-      }
-    } object _externalId;
-
-    /*/// <summary>
-    /// The universe this enum is a part of
-    /// </summary>
-    [JsonIgnore]
-    public Universe Universe {
-      get;
-      private set;
-    }*/
-
-    /// <summary>
     /// The base type of this enumeration
     /// </summary>
+    [JsonIgnore]
     public abstract Type EnumBaseType {
       get;
     }
@@ -86,20 +78,11 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Make a new enumeration.
     /// </summary>
-    protected Enumeration(object uniqueIdentifier/*, Universe universe = null*/)
-      : this(uniqueIdentifier, /*universe, */true) { }
+    protected Enumeration(object uniqueIdentifier)
+      : this(uniqueIdentifier, true) { }
 
-    internal Enumeration(object uniqueIdentifier/*, Universe universe*/, bool registerAsNew) {
-      /*Universe = universe ?? Archetypes.DefaultUniverse;
-      if (Universe is null) {
-        throw new System.ArgumentNullException(nameof(Universe));
-      }
-      if (Universe.Enumerations is null) {
-        throw new System.ArgumentNullException("Universe.Enumerations");
-      }*/
-
+    internal Enumeration(object uniqueIdentifier, bool registerAsNew) {
       InternalId = Interlocked.Increment(ref _currentMaxInternalEnumId) - 1;
-
       if (registerAsNew) {
         _registerNew(uniqueIdentifier);
       }
@@ -123,7 +106,7 @@ namespace Meep.Tech.XBam {
       }
     }
 
-    internal void _deRegister(Universe universe = null) {
+    internal void _deRegister(Universe? universe = null) {
       if (universe is null) {
         Universe.All.Values.ForEach(u => {
           u.Enumerations._deRegister(this);
@@ -152,30 +135,28 @@ namespace Meep.Tech.XBam {
 
     #region Equality, Comparison, and Conversion
 
-    /// <summary>
-    /// ==
-    /// </summary>
-    /// 
+    ///<summary><inheritdoc/></summary>
     public override bool Equals(object obj)
       => Equals(obj as Enumeration);
 
-    public bool Equals(Enumeration other) 
-      => !(other is null) && other.ExternalId == ExternalId;
+    ///<summary><inheritdoc/></summary>
+    public bool Equals(Enumeration? other) 
+      => this == other;
 
-    public static bool operator ==(Enumeration a, Enumeration b)
+    ///<summary><inheritdoc/></summary>
+    public static bool operator ==(Enumeration? a, Enumeration? b)
       => (a is null && b is null) || (a?.Equals(b) ?? false);
-     
-    public static bool operator !=(Enumeration a, Enumeration b)
+
+    ///<summary><inheritdoc/></summary>
+    public static bool operator !=(Enumeration? a, Enumeration? b)
       => !(a == b);
 
-    /// <summary>
-    /// #
-    /// </summary>
+    ///<summary><inheritdoc/></summary>
     public override int GetHashCode() {
-      // TODO: test using internal id here instead for more speeeed in indexing:
-      return ExternalId.GetHashCode();
+      return HashCode.Combine(_typeKey, ExternalId);
     }
 
+    ///<summary><inheritdoc/></summary>
     public override string ToString() {
       return ExternalId.ToString();
     }

@@ -12,12 +12,12 @@ namespace Meep.Tech.XBam {
     
     /// <summary>
     /// The default universe to use for models
-    /// TODO: this should clear some things in the future if it's changed during runtime, such as the default builder factory in the generic Models<> class.
+    /// TODO: this should clear some things in the future if it's changed during runtime, such as the default builder factory in the generic Models[] class.
     /// </summary>
     public static Universe DefaultUniverse {
       get => _defaultUniverseOverride ??= Archetypes.DefaultUniverse;
       set => _defaultUniverseOverride = value;
-    } private static Universe _defaultUniverseOverride;
+    } static Universe? _defaultUniverseOverride;
 
     /// <summary>
     /// Get the builder for a given component by type.d

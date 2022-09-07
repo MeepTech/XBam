@@ -96,7 +96,6 @@ namespace Meep.Tech.Collections.Generic {
       }
     }
 
-
     /// <summary>
     /// append a value if the condition is true
     /// </summary>

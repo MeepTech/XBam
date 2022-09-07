@@ -1,9 +1,11 @@
 ﻿using Meep.Tech.XBam.Utility;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
 using System;
 using System.ComponentModel;
 using System.Linq;
+using System.Reflection;
 
 namespace Meep.Tech.XBam.Json {
 
@@ -16,11 +18,6 @@ namespace Meep.Tech.XBam.Json {
       IModelJsonSerializer.ISettings IModelJsonSerializer.Options
         => Options;
       JsonSerializerSettings? _modelJsonSerializerSettings;
-
-      /// <summary>
-      /// The key used for the field containing the type data for an enum
-      /// </summary>
-      public const string EnumTypePropertyName = "__type_";
 
       /// <summary>
       /// The serializer options
@@ -36,13 +33,8 @@ namespace Meep.Tech.XBam.Json {
             .Modify(s => Options.ConfigureJsonSerializerSettings(Options, s));
 
       ///<summary><inheritdoc/></summary>
-      public JsonSerializer JsonSerializer { get; private set; }
-
-      ///<summary><inheritdoc/></summary>
-      public Func<IModel, IModel> CopyMethod {
-        get;
-        internal set;
-      }
+      public JsonSerializer JsonSerializer 
+        { get; private set; } = null!;
 
       /// <summary>
       /// Make a new serializer for a universe
@@ -56,7 +48,7 @@ namespace Meep.Tech.XBam.Json {
       protected internal virtual JObject SerializeModelToJson(Archetype archetype, IModel model, JsonSerializer? serializerOverride = null)
         => JObject.FromObject(
           model,
-          serializerOverride ?? Universe.TryToGetExtraContext<IModelJsonSerializer>()?.JsonSerializer
+          serializerOverride ?? Universe.TryToGetExtraContext<IModelJsonSerializer>()?.JsonSerializer!
         );
 
       /// <summary>
@@ -85,7 +77,7 @@ namespace Meep.Tech.XBam.Json {
         IModel? model
           = (IModel?)json.ToObject(
             deserializeToType,
-            serializerOverride ?? Universe.TryToGetExtraContext<IModelJsonSerializer>()?.JsonSerializer
+            serializerOverride ?? Universe.TryToGetExtraContext<IModelJsonSerializer>()?.JsonSerializer!
           );
 
         if (model is null) {
@@ -134,10 +126,10 @@ namespace Meep.Tech.XBam.Json {
       IModel? IModelJsonSerializer.DeserializeModelFromJson(Archetype archetype, JObject json, Type? deserializeToTypeOverride, JsonSerializer? serializerOverride, params (string key, object value)[] withConfigurationParameters)
         => DeserializeModelFromJson(archetype, json, deserializeToTypeOverride, serializerOverride, withConfigurationParameters);
 
-      IComponent? IModelJsonSerializer.DeserializeComponentFromJson(Archetype archetype, JObject json, IReadableComponentStorage? ontoParent = null, Type? deserializeToTypeOverride = null, JsonSerializer? serializerOverride = null, params (string key, object value)[] withConfigurationParameters)
+      IComponent? IModelJsonSerializer.DeserializeComponentFromJson(Archetype archetype, JObject json, IReadableComponentStorage? ontoParent, Type? deserializeToTypeOverride, JsonSerializer? serializerOverride, params (string key, object value)[] withConfigurationParameters)
         => DeserializeComponentFromJson(archetype, json, ontoParent, deserializeToTypeOverride, serializerOverride, withConfigurationParameters);
 
-      #region Loader Context Overrides
+      #region Extra Context Events
 
       ///<summary><inheritdoc/></summary>
       protected internal override Action<Universe> OnLoaderInitializationComplete

@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System;
 using System.Linq;
+using Newtonsoft.Json.Serialization;
+using System.Reflection;
 
 namespace Meep.Tech.XBam.Json.Configuration {
 
@@ -40,16 +42,34 @@ namespace Meep.Tech.XBam.Json.Configuration {
         get;
         set;
       } = universe => new Newtonsoft.Json.JsonConverter[] {
-        new Enumeration.JsonConverter(universe)
+        new Enumerations.JsonObjectConverter(universe),
+        new Archetypes.JsonStringConverter(universe)
       };
+
+      /// <summary>
+      /// Executed once for each json property created when scanning models with the default contract resolver.
+      /// </summary>
+      /// <remarks>
+      /// Use += to add functionality
+      /// </remarks>
+      public virtual Action<MemberInfo, JsonProperty>? OnLoaderModelJsonPropertyCreationComplete 
+        { get; set; } = (_,_) => { };
 
       /// <summary>
       /// If true, properies need to opt out to avoid being serialized into json using JsonIgnore. Even private properties.
       /// </summary>
       public bool PropertiesMustOptOutForJsonSerialization {
         get;
-        set;
+        init;
       } = true;
+
+      /// <summary>
+      /// If true, properies need to opt out to avoid being serialized into json using JsonIgnore. Even private properties.
+      /// </summary>
+      public bool IncludeUniverseKey {
+        get;
+        init;
+      } = false;
     }
   }
 }

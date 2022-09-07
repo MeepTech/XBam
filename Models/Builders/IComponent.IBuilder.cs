@@ -71,7 +71,7 @@ namespace Meep.Tech.XBam {
     public new partial struct Builder : XBam.IBuilder<TComponentBase>, IBuilder {
       Dictionary<string, object> _parameters
         => __parameters ??= new();
-      internal Dictionary<string, object> __parameters;
+      internal Dictionary<string, object>? __parameters;
 
       /// <summary>
       /// The archetype/factory using this builder.
@@ -90,12 +90,12 @@ namespace Meep.Tech.XBam {
       /// <summary>
       /// The parent model of this component, if there is one.
       /// </summary>
-      public IModel Parent {
+      public IModel? Parent {
         get;
         internal set;
       }
 
-      IModel IBuilder.Parent { 
+      IModel? IBuilder.Parent { 
         get => Parent;
         set => Parent = value;
       }
@@ -131,11 +131,10 @@ namespace Meep.Tech.XBam {
       public object this[string param]
         => this[param];
 
-
       /// <summary>
       /// Empty new builder
       /// </summary>
-      public Builder(XBam.Archetype type, IModel parent = null, Universe universe = null) {
+      public Builder(XBam.Archetype type, IModel? parent = null, Universe? universe = null) {
         Archetype = type;
         Universe = universe ?? type.Universe;
         Parent = parent;
@@ -145,7 +144,7 @@ namespace Meep.Tech.XBam {
       /// <summary>
       /// New builder from a collection of param names
       /// </summary>
-      public Builder(XBam.Archetype type, IEnumerable<KeyValuePair<string, object>> @params, IModel parent = null, Universe universe = null) {
+      public Builder(XBam.Archetype type, IEnumerable<KeyValuePair<string, object>>? @params, IModel? parent = null, Universe? universe = null) {
         Archetype = type;
         Universe = universe ?? Archetype.Universe;
         Parent = parent;
@@ -203,8 +202,8 @@ namespace Meep.Tech.XBam {
 
       ///<summary><inheritdoc/></summary>
       public TComponentBase Make() {
-        XBam.IComponent producedComponent = default;
-        IBuilder.InitalizeComponent(ref producedComponent, this);
+        XBam.IComponent producedComponent = default!;
+        IBuilder.InitalizeComponent(ref producedComponent!, this);
 
         // loging
         producedComponent.TryToLog(

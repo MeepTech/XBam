@@ -297,7 +297,6 @@ namespace Meep.Tech.Collections.Generic {
       _collection[index] = pair;
     }
 
-
     ///<summary><inheritdoc/></summary>
     /// <exception cref="AccessViolationException"/>
     public void SetByKey(TKey key, TValue value) {
@@ -343,7 +342,6 @@ namespace Meep.Tech.Collections.Generic {
 
       return false;
     }
-
 
     ///<summary><inheritdoc/></summary>
     public bool RemoveByKey(TKey key) {

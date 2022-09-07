@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 
-
 namespace Meep.Tech.Collections.Generic {
 
   /// <summary>

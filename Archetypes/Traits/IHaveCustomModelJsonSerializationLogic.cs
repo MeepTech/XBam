@@ -27,7 +27,6 @@ namespace Meep.Tech.XBam.Json {
       protected internal IModel? DeserializeComponentFromJson(Archetype archetype, JObject json, IReadableComponentStorage? ontoParent = null, Type? deserializeToTypeOverride = null, JsonSerializer? serializerOverride = null, params (string key, object value)[] withConfigurationParameters)
         => Universe.GetExtraContext<ModelJsonSerializerContext>().DeserializeComponentFromJson((Archetype)this, json, ontoParent, deserializeToTypeOverride, serializerOverride, withConfigurationParameters);
 
-
       /// <summary>
       /// Used to serialize a model with this archetype to a jobject by default
       /// </summary>

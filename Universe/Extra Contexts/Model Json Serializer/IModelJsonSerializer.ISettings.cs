@@ -1,6 +1,8 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace Meep.Tech.XBam.Json.Configuration {
   public partial interface IModelJsonSerializer {
@@ -29,10 +31,22 @@ namespace Meep.Tech.XBam.Json.Configuration {
         { get; set; }
 
       /// <summary>
+      /// Event for when a json property is created.
+      /// </summary>
+      Action<MemberInfo, JsonProperty>? OnLoaderModelJsonPropertyCreationComplete
+        { get; set; }
+
+      /// <summary>
       /// If true, properies need to opt out to avoid being serialized into json using JsonIgnore. Even private properties.
       /// </summary>
       bool PropertiesMustOptOutForJsonSerialization 
-        { get; set; }
+        { get; init; }
+
+      /// <summary>
+      /// If true, a 'universe' property with the proper key will be added.
+      /// </summary>
+      bool IncludeUniverseKey 
+        { get; init; }
     }
   }
 }

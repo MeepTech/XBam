@@ -326,7 +326,6 @@ namespace Meep.Tech.XBam.Json {
         )
       : throw new InvalidOperationException();
 
-
     /// <summary>
     /// Use an archetype as a guide to make the component from json.
     /// </summary>
@@ -361,7 +360,6 @@ namespace Meep.Tech.XBam.Json {
       JsonSerializer? serializerOverride = null,
       params (string key, object value)[] withConfigurationParameters
     ) => factory.MakeFromJson(JObject.Parse(json), deserializeToTypeOverride, ontoParent, serializerOverride, withConfigurationParameters);
-
 
     /// <summary>
     /// Use an archetype as a guide to make the component from json.

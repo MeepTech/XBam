@@ -4,6 +4,13 @@ namespace Meep.Tech.XBam {
 
   public partial interface IModel {
 
+    /// <summary>
+    /// The base interface for Model Components.
+    /// </summary>
+    /// <remarks>
+    /// Use the generic interface: IModel.IComponent[TComponentBase] to make new components instead
+    /// </remarks>
+    /// <see cref="IComponent{TComponentBase}"/>
     public partial interface IComponent 
       : XBam.IComponent {}
 

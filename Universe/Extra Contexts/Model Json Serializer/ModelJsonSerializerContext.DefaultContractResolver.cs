@@ -4,6 +4,7 @@ using System;
 using Newtonsoft.Json.Serialization;
 using System.Linq;
 using System.Reflection;
+using Meep.Tech.Reflection;
 
 namespace Meep.Tech.XBam.Json.Configuration {
 
@@ -17,9 +18,10 @@ namespace Meep.Tech.XBam.Json.Configuration {
         = typeof(IComponent).GetProperty(nameof(IComponent.Factory));
       static readonly PropertyInfo _idProp
         = typeof(IUnique).GetProperty(nameof(IUnique.Id));
-      readonly IFactory.JsonStringConverter _factoryToStringJsonConverter
-        = new();
-      readonly IReadableComponentStorage.ComponentsToJsonConverter _componentsJsonConverter;
+      static readonly PropertyInfo _universeProp
+        = typeof(IResource).GetProperty(nameof(IResource.Universe));
+      readonly Archetypes.JsonStringConverter _factoryToStringJsonConverter;
+      readonly Models.ComponentsToJsonConverter _componentsJsonConverter;
       readonly IModelJsonSerializer _serializationContext;
 
       /// <summary>
@@ -40,6 +42,7 @@ namespace Meep.Tech.XBam.Json.Configuration {
 
         Universe = universe;
         _componentsJsonConverter = new(Universe);
+        _factoryToStringJsonConverter = new(Universe);
         _serializationContext = universe.GetExtraContext<IModelJsonSerializer>();
       }
 
@@ -48,36 +51,7 @@ namespace Meep.Tech.XBam.Json.Configuration {
       /// </summary>
       protected override IList<JsonProperty> CreateProperties(Type type, MemberSerialization memberSerialization) {
         var baseProps = base.CreateProperties(type, memberSerialization);
-        // remove the universe property if there's one. It gets assinged as part of the archetype or key value
-        baseProps.Remove(
-          baseProps.FirstOrDefault(prop
-            => prop.PropertyName == nameof(Universe).ToLower())
-        );
-
-        // Add unique ids if there isn't one already
-        if (typeof(IUnique).IsAssignableFrom(type)) {
-          JsonProperty idJsonProp;
-          if ((idJsonProp = baseProps.FirstOrDefault(prop => prop.PropertyName == "id")) == null) {
-            idJsonProp = CreateProperty(_idProp, memberSerialization);
-            baseProps.Add(idJsonProp);
-          }
-
-          idJsonProp.Order = int.MinValue + 1;
-          baseProps = baseProps.OrderBy(p => p.Order ?? -1).ToList();
-        }
-
-        // add component factory
-        if (typeof(Meep.Tech.XBam.IComponent).IsAssignableFrom(type)) {
-          JsonProperty factoryJsonProp;
-          if ((factoryJsonProp = baseProps.FirstOrDefault(prop => prop.PropertyName == "key")) == null) {
-            factoryJsonProp = CreateProperty(_factoryProp, memberSerialization);
-            baseProps.Add(factoryJsonProp);
-          }
-
-          factoryJsonProp.Order = int.MinValue;
-          factoryJsonProp.PropertyName = "key";
-          baseProps = baseProps.OrderBy(p => p.Order ?? -1).ToList();
-        }
+        ConfigureBaseProperties(type, baseProps, _serializationContext, CreateProperty, memberSerialization, _factoryToStringJsonConverter);
 
         return baseProps;
       }
@@ -87,23 +61,101 @@ namespace Meep.Tech.XBam.Json.Configuration {
       /// </summary>
       protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization) {
         JsonProperty baseProperty = base.CreateProperty(member, memberSerialization);
-        if (!(member.GetCustomAttribute(typeof(ArchetypePropertyAttribute)) is null)) {
+        ConfigureBaseProperty(member, baseProperty, _serializationContext, _factoryToStringJsonConverter, _componentsJsonConverter);
+
+        return baseProperty;
+      }
+
+      /// <summary>
+      /// Used to configure the base properties on a contract resolver for xbam.
+      /// </summary>
+      public static void ConfigureBaseProperties(
+        Type type,
+        IList<JsonProperty> baseProps,
+        IModelJsonSerializer context,
+        Func<MemberInfo, MemberSerialization, JsonProperty> resolverPropertyConstructor,
+        MemberSerialization memberSerialization,
+        Archetypes.JsonStringConverter factoryToStringJsonConverter
+      ) {
+        // add universe (if applicable)
+        if (typeof(IResource).IsAssignableFrom(type)) {
+          var universeProp = baseProps
+            .FirstOrDefault(prop => prop.PropertyName == nameof(Universe).ToLower() && prop.PropertyType == typeof(Universe));
+
+          if (universeProp is not null) {
+            if (!context.Options.IncludeUniverseKey) {
+              baseProps.Remove(universeProp);
+            }
+          }
+          else {
+            if (context.Options.IncludeUniverseKey) {
+              universeProp = resolverPropertyConstructor(_universeProp, memberSerialization);
+              baseProps.Add(universeProp);
+            }
+          }
+        }
+
+        // Add unique ids if there isn't one already
+        if (typeof(IUnique).IsAssignableFrom(type)) {
+          JsonProperty idJsonProp;
+          if ((idJsonProp = baseProps.FirstOrDefault(prop => prop.PropertyName == "id")) == null) {
+            idJsonProp = resolverPropertyConstructor(_idProp, memberSerialization);
+            baseProps.Add(idJsonProp);
+          }
+
+          idJsonProp.Order = int.MinValue + 1;
+          baseProps = baseProps.OrderBy(p => p.Order ?? -1).ToList();
+        }
+
+        // add component factory
+        if (typeof(IComponent).IsAssignableFrom(type) || type.IsAssignableToGeneric(typeof(IModel<>))) {
+          JsonProperty factoryJsonProp;
+          if ((factoryJsonProp = baseProps.FirstOrDefault(prop => prop.PropertyName == "key")) == null) {
+            factoryJsonProp = resolverPropertyConstructor(_factoryProp, memberSerialization);
+            baseProps.Add(factoryJsonProp);
+          }
+
+          factoryJsonProp.Order = int.MinValue;
+          factoryJsonProp.PropertyName = "key";
+          factoryJsonProp.Converter = factoryToStringJsonConverter;
+          baseProps = baseProps.OrderBy(p => p.Order ?? -1).ToList();
+        }
+      }
+
+      /// <summary>
+      /// Used to configure the base properties on a contract resolver for xbam.
+      /// </summary>
+      public static void ConfigureBaseProperty(
+        MemberInfo member,
+        JsonProperty baseProperty,
+        IModelJsonSerializer context,
+        Archetypes.JsonStringConverter factoryToStringJsonConverter,
+        Models.ComponentsToJsonConverter componentsJsonConverter,
+        Action<
+          MemberInfo,
+          JsonProperty,
+          IModelJsonSerializer,
+          Archetypes.JsonStringConverter,
+          Models.ComponentsToJsonConverter
+        >? doBeforeMarkingComplete = null
+      ) {
+        if (member.GetCustomAttribute(typeof(ArchetypePropertyAttribute)) is not null) {
           // Archetype is always first:
           baseProperty.Order = int.MinValue;
           baseProperty.PropertyName = nameof(Archetype).ToLower();
-          baseProperty.Converter = _factoryToStringJsonConverter;
+          baseProperty.Converter = factoryToStringJsonConverter;
           baseProperty.ObjectCreationHandling = ObjectCreationHandling.Replace;
         }
 
-        if (!(member.GetCustomAttribute(typeof(ModelComponentsProperty)) is null)) {
+        if (member.GetCustomAttribute(typeof(ModelComponentsProperty)) is not null) {
           baseProperty.Order = int.MaxValue;
-          baseProperty.Converter = _componentsJsonConverter;
+          baseProperty.Converter = componentsJsonConverter;
           baseProperty.PropertyName = nameof(Components).ToLower();
           baseProperty.ObjectCreationHandling = ObjectCreationHandling.Replace;
         }
 
         /// Any property with a set method is included. Opt out is the default.
-        if (_serializationContext.Options.PropertiesMustOptOutForJsonSerialization
+        if (context.Options.PropertiesMustOptOutForJsonSerialization
           && member is PropertyInfo property
           && typeof(IModel).IsAssignableFrom(property.DeclaringType)
         ) {
@@ -112,8 +164,9 @@ namespace Meep.Tech.XBam.Json.Configuration {
           }
         }
 
-        Universe.ExtraContexts.OnLoaderModelJsonPropertyCreationComplete(member, baseProperty);
-        return baseProperty;
+        doBeforeMarkingComplete?.Invoke(member, baseProperty, context, factoryToStringJsonConverter, componentsJsonConverter);
+
+        context.Options.OnLoaderModelJsonPropertyCreationComplete?.Invoke(member, baseProperty);
       }
     }
   }

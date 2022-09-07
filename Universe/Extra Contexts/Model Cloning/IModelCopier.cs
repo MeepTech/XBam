@@ -11,7 +11,7 @@ namespace Meep.Tech.XBam.Cloning.Configuration {
     /// <summary>
     /// The options
     /// </summary>
-    ISettings? Options { get; }
+    new ISettings? Options { get; }
 
     /// <summary>
     /// The way models are copied by default

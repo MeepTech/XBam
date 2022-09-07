@@ -1,7 +1,9 @@
 ﻿using Meep.Tech.XBam.Configuration;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
 using System;
+using System.Reflection;
 
 namespace Meep.Tech.XBam.Json.Configuration {
 

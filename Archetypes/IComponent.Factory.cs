@@ -72,8 +72,9 @@ namespace Meep.Tech.XBam {
         => ModelBaseType.FullName;
 
       ///<summary><inheritdoc/></summary>
-      protected internal override Func<Archetype, IEnumerable<KeyValuePair<string, object>>, Universe, IBuilder<TComponentBase>> BuilderConstructor {
-        get => _defaultBuilderCtor ??= new((archetype, @params, universe) => new Builder(archetype, @params, null, universe));
+      protected internal override Func<Archetype, IEnumerable<KeyValuePair<string, object>>?, Universe, IBuilder<TComponentBase>> BuilderConstructor {
+        get => _defaultBuilderCtor 
+          ??= new((archetype, @params, universe) => new Builder(archetype, @params, null, universe));
         set => _defaultBuilderCtor = value;
       }
 

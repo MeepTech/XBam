@@ -15,10 +15,18 @@ namespace Meep.Tech.XBam.Configuration {
   public partial class AutoBuilderContext : Universe.ExtraContext, IModelAutoBuilder {
     Dictionary<Archetype, (Func<IBuilder, IModel> ctor, DelegateCollection<Func<IModel, IBuilder, IModel>>? steps)> _modelAutoBuilderSteps
       = new();
+    IModelAutoBuilder.ISettings IModelAutoBuilder.Options => Options;
 
-    /// <summary>
-    /// Check if an archetype has auto builder steps included.
-    /// </summary>
+    ///<summary><inheritdoc/></summary>
+    public new Settings Options
+      => base.Options as Settings
+        ?? throw new ArgumentNullException(nameof(Options));
+
+    ///<summary><inheritdoc/></summary>
+    public AutoBuilderContext(Settings? settings = null) 
+      : base(settings ?? new()) {}
+
+    ///<summary><inheritdoc/></summary>
     public bool HasAutoBuilderSteps<TArchetype>(TArchetype? archetype = null) where TArchetype : Archetype
       => _modelAutoBuilderSteps.TryToGet(archetype ?? typeof(TArchetype).AsArchetype()).steps != null;
 
@@ -84,7 +92,7 @@ namespace Meep.Tech.XBam.Configuration {
         .Select(p => (p, a: p.GetCustomAttribute<AutoBuildAttribute>(true)))
         .Where(e => e.a is not null)
         .Select(e => {
-          OnLoaderAutoBuildPropertyCreationStart?.Invoke(modelType, e.a, e.p);
+          Options.OnLoaderAutoBuildPropertyCreationStart?.Invoke(modelType, e.a, e.p);
 
           var entry = (
             order: e.a.Order,
@@ -93,7 +101,7 @@ namespace Meep.Tech.XBam.Configuration {
               => _autoBuildModelProperty(m, b, e.p, e.a, modelType))
           );
 
-          OnLoaderAutoBuildPropertyCreationComplete?.Invoke(modelType, e.a, e.p, entry);
+          Options.OnLoaderAutoBuildPropertyCreationComplete?.Invoke(modelType, e.a, e.p, entry);
           return entry;
         }).OrderBy(e => e.order)
         .Select(e => (e.name, e.func));
@@ -209,28 +217,29 @@ namespace Meep.Tech.XBam.Configuration {
 
       if (@delegate is MethodInfo method) {
         return new ValueValidator((object v, IBuilder b, IModel m, out string t, out System.Exception x) => {
-          object[] parameters = new object[] { v, b, b, null, null };
+          object[] parameters = new object[] { v, b, b, null!, null! };
           if ((bool)method.Invoke(b, parameters)) {
-            t = parameters[3] as string;
-            x = parameters[4] as Exception;
+            t = (string)parameters[3];
+            x = (Exception)parameters[4];
 
             return true;
           }
           else {
-            t = parameters[3] as string;
-            x = parameters[4] as Exception;
+            t = (string)parameters[3];
+            x = (Exception)parameters[4];
 
             return false;
           }
         });
       }
       else {
-        ValueValidator defaultValidatorDelegate = (@delegate is PropertyInfo p
+        ValueValidator defaultValidatorDelegate = (ValueValidator)(
+          @delegate is PropertyInfo p
             ? p.Get(model)
             : @delegate is FieldInfo f
               ? f.GetValue(model)
               : throw new System.Exception($"Unknown member type for default builder attribute default value")
-          ) as AutoBuildAttribute.ValueValidator;
+        );
 
         return defaultValidatorDelegate;
       }
@@ -239,21 +248,6 @@ namespace Meep.Tech.XBam.Configuration {
     #endregion
 
     #region Extra Context Events
-
-    /// <summary>
-    /// Executed once for each xbam auto build property created when scanning models.
-    /// </summary>
-    protected virtual Action<System.Type, AutoBuildAttribute, PropertyInfo>? OnLoaderAutoBuildPropertyCreationStart { get; set; } = null;
-
-    /// <summary>
-    /// Executed once for each xbam auto build property created when scanning models.
-    /// </summary>
-    protected virtual Action<
-      System.Type,
-      AutoBuildAttribute,
-      PropertyInfo,
-      (int, string, Func<IModel, IBuilder, IModel>)
-    >? OnLoaderAutoBuildPropertyCreationComplete { get; set; } = null;
 
     ///<summary><inheritdoc/></summary>
     protected internal override Action<Loader> OnLoaderInitializationStart
@@ -276,9 +270,5 @@ namespace Meep.Tech.XBam.Configuration {
         => _initializeAutoBuilderSettings(archetype, ((IFactory)archetype)._modelConstructor is null);
 
     #endregion
-  }
-
-  public interface IModelAutoBuilder : IExtraUniverseContextType {
-    bool HasAutoBuilderSteps<TArchetype>(TArchetype archetype) where TArchetype : Archetype;
   }
 }

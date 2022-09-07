@@ -1,7 +1,6 @@
 ﻿using Meep.Tech.Reflection;
 using Meep.Tech.XBam.Configuration;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -60,7 +59,7 @@ namespace Meep.Tech.XBam.Logging.Configuration {
     /// <summary>
     /// The current sub process of the loader
     /// </summary>
-    public string CurrentSubProcessName {
+    public string? CurrentSubProcessName {
       get;
       private set;
     } = "Initialization";
@@ -88,13 +87,13 @@ namespace Meep.Tech.XBam.Logging.Configuration {
     /// <summary>
     /// Used to write a standardize console message
     /// </summary>
-    public void WriteMessage(string message, string prefix = null, bool isError = false, Exception exception = null, string verboseNonErrorText = null) {
+    public void WriteMessage(string message, string? prefix = null, bool isError = false, Exception? exception = null, string? verboseNonErrorText = null) {
       string toWrite = (isError ? "!" : "") + DebuggerOutputPrefix;
       if (prefix != null) {
         toWrite += prefix + ":";
       }
       if (_overallStepsRemaining != null) {
-        toWrite += Math.Round(OverallPercentComplete.Value * 100).ToString() + "%:";
+        toWrite += Math.Round(OverallPercentComplete!.Value * 100).ToString() + "%:";
       } else {
         toWrite += "\t";
       }
@@ -102,7 +101,7 @@ namespace Meep.Tech.XBam.Logging.Configuration {
       toWrite += "\t";
 
       if (_subProcessStepsRemaining != null) {
-        toWrite += (CurrentSubProcessName is not null ? CurrentSubProcessName + " - " : "") + Math.Round(CurrentSubProcessPercentComplete.Value * 100).ToString() + "%:";
+        toWrite += (CurrentSubProcessName is not null ? CurrentSubProcessName + " - " : "") + Math.Round(CurrentSubProcessPercentComplete!.Value * 100).ToString() + "%:";
         toWrite += "\t";
       }
 
@@ -119,16 +118,31 @@ namespace Meep.Tech.XBam.Logging.Configuration {
       Console.WriteLine(toWrite);
     }
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<Loader> OnLoaderInitializationStart
       => loader => {
         WriteMessage($"Initializing a New XBam Loader.", "Loader", verboseNonErrorText: $"With settings: \n{JsonConvert.SerializeObject(Universe.Loader.Options, Formatting.Indented)}");
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<Universe> OnLoaderInitializationComplete
       => universe => {
         WriteMessage($"Initialized XBam Loader for Universe: {universe.Key}", "Loader");
       };
 
+    ///<summary><inheritdoc/></summary>
+    protected internal override Action<Universe>? OnLoaderDefaultExtraContextsInitializationComplete
+      => universe => {
+        if (universe.TryToGetExtraContext<Json.Configuration.IModelJsonSerializer>(out var autoBuilder)) {
+          autoBuilder!.Options.OnLoaderModelJsonPropertyCreationComplete += (member, jsonProp) => {
+            if (VerboseModeForNonErrors) {
+              WriteMessage($"Added Json Property For Serialization: {jsonProp.PropertyName}, to Model: {member.DeclaringType.Name}.", "Serializer");
+            }
+          };
+        }
+      };
+
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<IEnumerable<Assembly>> OnLoaderAssembliesCollected
       => assemblies => {
         _overallStepsRemaining
@@ -139,12 +153,14 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         WriteMessage($"Collected and Ordered Assemblies to Load Types from.", verboseNonErrorText: $"\tCount: {assemblies.Count()}\n\t - {string.Join("\n\t - ", assemblies.Select(a => a.FullName))}\n\n", prefix: "Loader");
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action OnLoaderInitialSystemTypesCollected
       => () => {
         _overallStepsRemaining -= LoaderCollectTypesStepCountSize;
         WriteMessage($"Collected Initial Types to Load from the Ordered Assemblies", "Loader");
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<Loader.AssemblyBuildableTypesCollection> OnLoaderAssemblyLoadStart
       => (assemblyTypes) => {
         CurrentSubProcessName = $"Load Types From Assembly - {assemblyTypes.Assembly.GetName().Name}";
@@ -165,12 +181,14 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         WriteMessage($"Started Loading Assembly with {_subProcessStepsRemaining} Types.", "Loader");
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<PropertyInfo> OnLoaderEnumInitializationStart
       => prop => {
         WriteMessage($"Started Loading Enum from Property: {prop.Name}, on class: {prop.DeclaringType.ToFullHumanReadableNameString()}, of type {prop.PropertyType.ToFullHumanReadableNameString()}.", "Loader");
       };
 
-    protected internal override Action<bool, PropertyInfo, Enumeration, Exception> OnLoaderEnumInitializationComplete
+    ///<summary><inheritdoc/></summary>
+    protected internal override Action<bool, PropertyInfo, Enumeration?, Exception?> OnLoaderEnumInitializationComplete
       => (success, prop, @enum, error) => {
         _subProcessStepsRemaining -= 1;
 
@@ -182,28 +200,32 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         }
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<Type> OnLoaderComponentInitializationStart
       => componentSystemType => {
         WriteMessage($"Started Loading Component from class: {componentSystemType.ToFullHumanReadableNameString()}.", "Loader");
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<Type> OnLoaderBuildTestComponentStart
       => componentSystemType => {
         WriteMessage($"Started Test-Building Component from class: {componentSystemType.ToFullHumanReadableNameString()}.", "Loader");
       };
 
-    protected internal override Action<bool, Type, IComponent, Exception> OnLoaderBuildTestComponentComplete
+    ///<summary><inheritdoc/></summary>
+    protected internal override Action<bool, Type, IComponent?, Exception?> OnLoaderBuildTestComponentComplete
       => (success, componentSystemType, component, exception) => {
         _subProcessStepsRemaining -= 1;
 
         if (success) {
-          WriteMessage($"Successfully Test-Built Component with Key:{component.Key}, from class: {componentSystemType.ToFullHumanReadableNameString()}", "Loader");
+          WriteMessage($"Successfully Test-Built Component with Key:{component!.Key}, from class: {componentSystemType.ToFullHumanReadableNameString()}", "Loader");
         } else {
           WriteMessage($"Failed to Test-Build Component from class: {componentSystemType.ToFullHumanReadableNameString()}", "Loader", true, exception);
         }
       };
 
-    protected internal override Action<bool, Type, Exception> OnLoaderComponentInitializationComplete
+    ///<summary><inheritdoc/></summary>
+    protected internal override Action<bool, Type, Exception?> OnLoaderComponentInitializationComplete
       => (success, componentSystemType, error) => {
         _subProcessStepsRemaining -= 1;
 
@@ -215,12 +237,14 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         }
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<Type> OnLoaderSimpleModelInitializationStart
       => modelSystemType => {
         WriteMessage($"Started Initializing Simple Model from class: {modelSystemType.ToFullHumanReadableNameString()}.", "Loader");
       };
 
-    protected internal override Action<bool, Type, Exception> OnLoaderSimpleModelInitializationComplete
+    ///<summary><inheritdoc/></summary>
+    protected internal override Action<bool, Type, Exception?> OnLoaderSimpleModelInitializationComplete
       => (success, modelSystemType, error) => {
         _subProcessStepsRemaining -= 1;
 
@@ -232,12 +256,14 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         }
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<Type, bool> OnLoaderArchetypeInitializationStart
       => (archetypeSystemType, isSplayedSubType) => {
         WriteMessage($"Started Initializing {(isSplayedSubType ? "A Splayed " : "")}Archetype from class: {archetypeSystemType.ToFullHumanReadableNameString()}.", "Loader");
       };
 
-    protected internal override Action<bool, Type, Archetype, Exception, bool> OnLoaderArchetypeInitializationComplete
+    ///<summary><inheritdoc/></summary>
+    protected internal override Action<bool, Type, Archetype?, Exception?, bool> OnLoaderArchetypeInitializationComplete
       => (success, archetypeSystemType, archetype, error, isSplayedSubType) => {
         _subProcessStepsRemaining -= 1;
 
@@ -254,17 +280,20 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         }
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<Type> OnLoaderModelFullInitializationStart
       => modelSystemType => {
         WriteMessage($"Started Initializing Model Fully from class: {modelSystemType.ToFullHumanReadableNameString()}.", "Loader");
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<Type> OnLoaderModelFullRegistrationStart
       => modelSystemType => {
         WriteMessage($"Started Registering Model from class: {modelSystemType.ToFullHumanReadableNameString()}.", "Loader");
       };
 
-    protected internal override Action<bool, Type, Exception> OnLoaderModelFullRegistrationComplete
+    ///<summary><inheritdoc/></summary>
+    protected internal override Action<bool, Type, Exception?> OnLoaderModelFullRegistrationComplete
       => (success, modelSystemType, error) => {
         _subProcessStepsRemaining -= 1;
 
@@ -276,7 +305,8 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         }
       };
 
-    protected internal override Action<bool, Type, Exception> OnLoaderModelFullInitializationComplete
+    ///<summary><inheritdoc/></summary>
+    protected internal override Action<bool, Type, Exception?> OnLoaderModelFullInitializationComplete
       => (success, modelSystemType, error) => {
         _subProcessStepsRemaining -= 1;
 
@@ -288,7 +318,7 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         }
       };
 
-
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<Loader.AssemblyBuildableTypesCollection> OnLoaderAssemblyLoadComplete
       => (assemblyTypes) => {
         CurrentSubProcessName = null;
@@ -298,9 +328,11 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         WriteMessage($"Finished Loading Assembly!", "Loader");
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action OnLoaderTypesInitializationFirstRunComplete
       => () => WriteMessage($"First Initialization Attempt Run on all Assemblies Complete!", "Loader");
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<int> OnLoaderFurtherAnizializationAttemptStart
       => runNumber => {
         _subProcessStepsRemaining = 0;
@@ -312,6 +344,7 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         WriteMessage($"Running Initialization Attempt #{runNumber} for {Universe.Loader.UninitializedTypesCount} remaining Uninintalized Types.", "Loader");
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<int> OnLoaderFurtherInizializationAttemptComplete
       => runNumber => {
         _subProcessStepsRemaining = 0;
@@ -319,12 +352,14 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         WriteMessage($"Finished Initialization Attempt #{runNumber} with {Universe.Loader.UninitializedTypesCount} remaining Uninintalized Types.", "Loader");
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action OnLoaderTypesInitializationAllRunsComplete
       => () => {
         _overallStepsRemaining -= LoaderMajorStepCountSize;
         WriteMessage($"Finished all Loader Initialization Attempts with {Universe.Loader.UninitializedTypesCount} remaining Uninintalized Types.", "Loader");
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<int> OnLoaderBuildAllTestModelsStart
       => archetypesToTestCount => {
         _subProcessStepsRemaining = archetypesToTestCount;
@@ -332,21 +367,24 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         WriteMessage($"Building Test Models for {archetypesToTestCount} Initialized Archetypes.", "Loader");
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<Archetype> OnLoaderTestModelBuildStart
       => archetypeToBuildTestModelFor => WriteMessage($"Building Test Model for Archetype: {archetypeToBuildTestModelFor}.", "Loader");
 
-    protected internal override Action<bool, Archetype, IModel, Exception> OnLoaderTestModelBuildComplete
+    ///<summary><inheritdoc/></summary>
+    protected internal override Action<bool, Archetype, IModel?, Exception?> OnLoaderTestModelBuildComplete
       => (success, archetypeToTestBuildModelFor, testBuiltModel, exception) => {
         _subProcessStepsRemaining -= 1;
 
         if (success) {
-          WriteMessage($"Finished Building Test Model of type {testBuiltModel.GetType()} for Archetype: {archetypeToTestBuildModelFor}: {testBuiltModel}", "Loader");
+          WriteMessage($"Finished Building Test Model of type {testBuiltModel!.GetType()} for Archetype: {archetypeToTestBuildModelFor}: {testBuiltModel}", "Loader");
         }
         else {
           WriteMessage($"Failed to Build Test Model for Archetype: {archetypeToTestBuildModelFor}.", "Loader", true, exception);
         }
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action OnLoaderBuildAllTestModelsComplete
       => () => {
         _subProcessStepsRemaining = null;
@@ -355,6 +393,7 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         WriteMessage($"Finished Building Test Models for Initialized Archetypes.", "Loader");
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<IEnumerable<Type>> OnLoaderAllModificationsStart
       => modifierTypes => {
         _subProcessStepsRemaining = modifierTypes.Count();
@@ -362,10 +401,12 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         WriteMessage(message: $"Loading and Running Modifier Types in Assembly Load Order.", verboseNonErrorText: $"{string.Join("\n\t - ", modifierTypes.Select(m => m.Name))}\n\n", prefix: "Loader");
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<Type> OnLoaderModificationStart
       => modType => WriteMessage($"Starting Initialization for Modifier of Type: {modType.Name} from Assembly: {modType.Assembly.GetName().Name}", "Loader");
 
-    protected internal override Action<bool, Type, Modifications, Exception> OnLoaderModificationComplete
+    ///<summary><inheritdoc/></summary>
+    protected internal override Action<bool, Type, Modifications, Exception?> OnLoaderModificationComplete
       => (success, modType, mod, error) => {
         _subProcessStepsRemaining -= 1;
         _overallStepsRemaining -= LoaderModifierStepCountSize;
@@ -377,6 +418,7 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         }
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action OnLoaderAllModificationsComplete
       => () => {
         _subProcessStepsRemaining = null;
@@ -384,18 +426,22 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         WriteMessage($"Finished Initializing and Loading Modifier Classes", "Loader");
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action OnLoaderFinishTypesStart
       => () => WriteMessage($"Starting the Process of Finishing {Universe.Loader._initializedArchetypes.Count()} Archetypes", "Loader");
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action OnLoaderFinishTypesComplete
       => () => {
         _overallStepsRemaining -= LoaderMajorStepCountSize;
         WriteMessage($"Finished Loading {Universe.Loader._finishedArchetypes.Count()} Archetypes with: {Universe.Loader._initializedArchetypes.Count()} Types Unfinished.", "Loader", verboseNonErrorText: string.Join("\n\t - ", Universe.Loader._initializedArchetypes));
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action OnLoaderFinalizeStart
       => () => WriteMessage($"Starting the Process of Finalizing the XBam Loader for Universe: {Universe.Loader.Universe.Key}.", "Loader");
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action OnLoaderFinalizeComplete
       => () => {
         _overallStepsRemaining = 0;
@@ -405,7 +451,7 @@ namespace Meep.Tech.XBam.Logging.Configuration {
           WriteMessage($"Failed To Initialize The Following {Universe.Loader.Failures.Count()} Types:", isError: true, prefix: "Loader");
           foreach(Loader.Failure failure in Universe.Loader.Failures) {
             if (failure.XbamType == "Enumeration") {
-              Console.Error.WriteLine($"Could not initialize Enumeration of Type: {failure.SystemType.ToFullHumanReadableNameString()} on Property with Name:{(failure.Metadata as PropertyInfo).Name}, on Type: {(failure.Metadata as PropertyInfo).DeclaringType.ToFullHumanReadableNameString()}, due to Exception:\n\n{failure.Exception}");
+              Console.Error.WriteLine($"Could not initialize Enumeration of Type: {failure.SystemType.ToFullHumanReadableNameString()} on Property with Name:{((PropertyInfo)failure.Metadata).Name}, on Type: {((PropertyInfo)failure.Metadata).DeclaringType.ToFullHumanReadableNameString()}, due to Exception:\n\n{failure.Exception}");
             }
             else {
               Console.Error.WriteLine($"Could not initialize {failure.XbamType} Type: {failure.SystemType.ToFullHumanReadableNameString()}, due to Exception:\n\n{failure.Exception}");
@@ -414,6 +460,7 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         }
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action OnLoaderIsFinished
       => () => {
         _overallStepsRemaining = null;
@@ -430,16 +477,10 @@ namespace Meep.Tech.XBam.Logging.Configuration {
         );
       };
 
+    ///<summary><inheritdoc/></summary>
     protected internal override Action<Archetype> OnUnloadArchetype
       => archetype => {
         WriteMessage($"Unloaded Archetype of Type:{archetype.GetType().FullName}.", "UnLoader");
-      };
-
-    protected internal override Action<MemberInfo, JsonProperty> OnLoaderModelJsonPropertyCreationComplete
-      => (member, jsonProp) => {
-        if (VerboseModeForNonErrors) {
-          WriteMessage($"Added Json Property For Serialization: {jsonProp.PropertyName}, to Model: {member.DeclaringType.Name}.", "Serializer");
-        }
       };
   }
 }

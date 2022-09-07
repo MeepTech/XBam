@@ -31,8 +31,8 @@ namespace Meep.Tech.XBam {
       public Factory(
         Identity id,
         Universe universe,
-        HashSet<XBam.Archetype.IComponent> archetypeComponents = null,
-        IEnumerable<Func<IBuilder, IModel.IComponent>> modelComponentCtors = null 
+        HashSet<XBam.Archetype.IComponent>? archetypeComponents = null,
+        IEnumerable<Func<IBuilder, IModel.IComponent>>? modelComponentCtors = null 
       )  : base(id, universe, archetypeComponents, modelComponentCtors) { }
     }
 
@@ -107,8 +107,8 @@ namespace Meep.Tech.XBam {
         XBam.Archetype.Identity id,
         Universe universe,
         // TODO: implement:
-        HashSet<XBam.Archetype.IComponent> archetypeComponents = null,
-        IEnumerable<Func<IBuilder, IModel.IComponent>> modelComponentCtors = null
+        HashSet<XBam.Archetype.IComponent>? archetypeComponents = null,
+        IEnumerable<Func<IBuilder, IModel.IComponent>>? modelComponentCtors = null
       ) : base(
             id,
             universe,

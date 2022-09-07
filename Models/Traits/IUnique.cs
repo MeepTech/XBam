@@ -49,7 +49,6 @@ namespace Meep.Tech.XBam {
       return this;
     }
 
-
     #region Id Setup
 
     private static readonly Dictionary<System.Type, IdGetter> _idGetters

@@ -38,7 +38,6 @@ using FN_DECIMAL = System.Single;
 using System;
 using System.Runtime.CompilerServices;
 
-
 namespace Meep.Tech.Noise {
 
   /// <summary>
@@ -107,7 +106,6 @@ namespace Meep.Tech.Noise {
     // Default: Simplex
     public void SetNoiseType(NoiseType noiseType) { m_noiseType = noiseType; }
 
-
     // Sets octave count for all fractal noise types
     // Default: 3
     public void SetFractalOctaves(int octaves) { m_octaves = octaves; CalculateFractalBounding(); }
@@ -123,7 +121,6 @@ namespace Meep.Tech.Noise {
     // Sets method for combining octaves in all fractal noise types
     // Default: FBM
     public void SetFractalType(FractalType fractalType) { m_fractalType = fractalType; }
-
 
     // Sets return type from cellular noise calculations
     // Note: NoiseLookup requires another FastNoise object be set with SetCellularNoiseLookup() to function
@@ -154,7 +151,6 @@ namespace Meep.Tech.Noise {
     // Noise used to calculate a cell value if cellular return type is NoiseLookup
     // The lookup value is acquired through GetNoise() so ensure you SetNoiseType() on the noise lookup, value, gradient or simplex is recommended
     public void SetCellularNoiseLookup(FastNoise noise) { m_cellularNoiseLookup = noise; }
-
 
     // Sets the maximum perturb distance from original location when using GradientPerturb{Fractal}(...)
     // Default: 1.0
@@ -1551,7 +1547,6 @@ namespace Meep.Tech.Noise {
         ys),
         zs) * CUBIC_3D_BOUNDING;
     }
-
 
     public FN_DECIMAL GetCubicFractal(FN_DECIMAL x, FN_DECIMAL y) {
       x *= m_frequency;

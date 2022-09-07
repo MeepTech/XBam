@@ -21,6 +21,5 @@ namespace Meep.Tech.Data.Archetypes.Traits {
     /// called after the auto build steps are run
     /// </summary>
     protected internal void OnAutoBuildStepsCompleted(ref IModel model, IBuilder builder) { }
-
   }
 }

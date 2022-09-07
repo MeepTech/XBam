@@ -201,7 +201,7 @@ namespace Meep.Tech.XBam {
   public class TestValueIsEmptyEnumerableAttribute : TestValueBaseAttribute {
 
     /// <summary>
-    /// Set the test value of this field to 'Enumerable.Empty<T>()';
+    /// Set the test value of this field to 'Enumerable.Empty[T]()';
     /// </summary>
     public TestValueIsEmptyEnumerableAttribute() : base() { }
   }

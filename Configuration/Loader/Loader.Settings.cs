@@ -188,7 +188,6 @@ namespace Meep.Tech.XBam.Configuration {
         }
       };
 
-
       /// <summary>
       /// The default config used to compare model objects
       /// </summary>

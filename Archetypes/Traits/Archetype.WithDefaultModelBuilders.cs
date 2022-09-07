@@ -288,7 +288,6 @@ namespace Meep.Tech.XBam {
       new public TModelBase Make(Func<IBuilder<TModelBase>, IBuilder<TModelBase>> configureBuilder)
         => base.Make(configureBuilder);
 
-
       /// <summary>
       /// Make a model by and configuring the default builder.
       /// </summary>

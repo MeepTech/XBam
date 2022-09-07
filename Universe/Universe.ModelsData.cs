@@ -419,7 +419,6 @@ namespace Meep.Tech.XBam {
           }) as IModel.IFactory;
       }
 
-
       /// <summary>
       /// Make an object ctor from a provided default ctor.
       /// Valid CTORS:
