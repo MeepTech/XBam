@@ -31,30 +31,45 @@ namespace Meep.Tech.XBam {
       /// <summary>
       /// Used to initialize the component with or without a builder.
       /// </summary>
-      internal protected static void InitalizeComponent(ref XBam.IComponent? component, IBuilder? @this, XBam.IReadableComponentStorage? ontoParent = null, Archetype? archetype = null, Universe? universe = null) {
-        universe = @this?.Universe ?? universe ?? throw new ArgumentNullException();
-        archetype = @this?.Archetype ?? archetype ?? throw new ArgumentNullException();
+      internal protected static void InitalizeComponent(ref XBam.IComponent? component, IBuilder? builder, XBam.IReadableComponentStorage? ontoParent = null, Archetype? archetype = null, Universe? universe = null) {
+        universe = builder?.Universe ?? universe ?? throw new ArgumentNullException();
+        archetype = builder?.Archetype ?? archetype ?? throw new ArgumentNullException();
 
-        component ??= (XBam.IComponent)((XBam.IFactory)(@this?.Archetype ?? archetype))._modelConstructor(@this);
+        component ??= (XBam.IComponent?)((XBam.IFactory)(builder?.Archetype ?? archetype))._modelConstructor(builder 
+          ?? throw new ArgumentNullException(nameof(builder)));
 
         if (component is null) {
-          return;
+          if (builder is not null) {
+            component = (XBam.IComponent?)archetype.OnModelInitialized(builder, component);
+
+            if (component is not null) {
+              component = (XBam.IComponent)component.OnFinalized(builder);
+            }
+
+            component = (XBam.IComponent?)archetype.OnModelFinalized(builder, component);
+          }
         }
+        else {
+          component = (XBam.IComponent)component.OnInitialized((builder?.Archetype ?? archetype), (builder?.Universe ?? universe), builder);
 
-        component = (XBam.IComponent)component.OnInitialized((@this?.Archetype ?? archetype), (@this?.Universe ?? universe), @this);
+          if (component is IUnique unique) {
+            component = (XBam.IComponent)unique.InitializeId(builder?.TryToGet<string>(nameof(IUnique.Id)));
+          }
 
-        if (component is IUnique unique) {
-          component = (XBam.IComponent)unique.InitializeId(@this?.TryToGet<string>(nameof(IUnique.Id)));
+          if (component is IModel.IComponent.IKnowMyParentModel child) {
+            child.Container = (IReadableComponentStorage?)(ontoParent ?? ((IReadableComponentStorage?)builder?.Parent))!;
+          }
+
+          if (builder is not null) {
+            component = (XBam.IComponent)(builder?.Archetype ?? archetype).OnModelInitialized(builder!, component)!;
+          }
+
+          component = (XBam.IComponent)component.OnFinalized(builder);
+
+          if (builder is not null) {
+            component = (XBam.IComponent)(builder?.Archetype ?? archetype).OnModelFinalized(builder!, component)!;
+          }
         }
-
-        if (component is IModel.IComponent.IKnowMyParentModel child) {
-          child.Container = (IReadableComponentStorage?)ontoParent ?? ((IReadableComponentStorage?)@this?.Parent);
-        }
-         
-        component = (XBam.IComponent)(@this?.Archetype ?? archetype).ConfigureModel(@this, component);
-
-        component = (XBam.IComponent)component.OnFinalized(@this);
-        component = (XBam.IComponent)(@this?.Archetype ?? archetype).FinalizeModel(@this, component);
       }
     }
   }

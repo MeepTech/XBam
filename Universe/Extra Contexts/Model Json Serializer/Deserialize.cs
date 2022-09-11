@@ -15,9 +15,8 @@ namespace Meep.Tech.XBam.Json {
       JObject jObject,
       Type? deserializeToType = default,
       Universe? universe = default,
-      JsonSerializer? serializer = default,
-      params (string key, object value)[] withConfigurationParameters
-    ) => jObject.ToModel(deserializeToType, serializer, universe, withConfigurationParameters);
+      JsonSerializer? serializer = default
+    ) => jObject.ToModel(deserializeToType, serializer, universe);
 
     /// <summary>
     /// Deserialize a string to a model
@@ -28,7 +27,7 @@ namespace Meep.Tech.XBam.Json {
       Universe? universe = default,
       JsonSerializer? serializer = default,
       params (string key, object value)[] withConfigurationParameters
-    ) => json.ToModelFromJson(deserializeToType, serializer, universe, withConfigurationParameters);
+    ) => json.ToModelFromJson(deserializeToType, serializer, universe);
 
     /// <summary>
     /// Deserialize a jobject to a model
@@ -37,10 +36,9 @@ namespace Meep.Tech.XBam.Json {
       JObject jObject,
       Type? deserializeToType = default,
       Universe? universe = default,
-      JsonSerializer? serializer = default,
-      params (string key, object value)[] withConfigurationParameters
+      JsonSerializer? serializer = default
     ) where TModel : IModel
-      => jObject.ToModel<TModel>(deserializeToType, serializer, universe, withConfigurationParameters);
+      => jObject.ToModel<TModel>(deserializeToType, serializer, universe);
 
     /// <summary>
     /// Deserialize a string to a model
@@ -52,7 +50,7 @@ namespace Meep.Tech.XBam.Json {
       JsonSerializer? serializer = default,
       params (string key, object value)[] withConfigurationParameters
     ) where TModel : IModel
-      => json.ToModelFromJson<TModel>(deserializeToType, serializer, universe, withConfigurationParameters);
+      => json.ToModelFromJson<TModel>(deserializeToType, serializer, universe);
 
     /// <summary>
     /// Deserialize a jobject to a component
@@ -62,9 +60,8 @@ namespace Meep.Tech.XBam.Json {
       Type? deserializeToType = default,
       Universe? universe = default,
       IReadableComponentStorage? ontoParent = null,
-      JsonSerializer? serializer = default,
-      params (string key, object value)[] withConfigurationParameters
-    ) => jObject.ToComponent(deserializeToType, ontoParent, serializer, universe, withConfigurationParameters);
+      JsonSerializer? serializer = default
+    ) => jObject.ToComponent(deserializeToType, ontoParent, serializer, universe);
 
     /// <summary>
     /// Deserialize a string to a component
@@ -76,7 +73,7 @@ namespace Meep.Tech.XBam.Json {
       IReadableComponentStorage? ontoParent = null,
       JsonSerializer? serializer = default,
       params (string key, object value)[] withConfigurationParameters
-    ) => json.ToComponentFromJson(deserializeToType, ontoParent, serializer, universe, withConfigurationParameters);
+    ) => json.ToComponentFromJson(deserializeToType, ontoParent, serializer, universe);
 
     /// <summary>
     /// Deserialize a jobject to a component
@@ -86,10 +83,9 @@ namespace Meep.Tech.XBam.Json {
       Type? deserializeToType = default,
       Universe? universe = default,
       IReadableComponentStorage? ontoParent = null,
-      JsonSerializer? serializer = default,
-      params (string key, object value)[] withConfigurationParameters
+      JsonSerializer? serializer = default
     ) where TComponent : IComponent
-      => jObject.ToComponent<TComponent>(deserializeToType, ontoParent, serializer, universe, withConfigurationParameters);
+      => jObject.ToComponent<TComponent>(deserializeToType, ontoParent, serializer, universe);
 
     /// <summary>
     /// Deserialize a string to a component
@@ -99,9 +95,8 @@ namespace Meep.Tech.XBam.Json {
       Type? deserializeToType = default,
       Universe? universe = default,
       IReadableComponentStorage? ontoParent = null,
-      JsonSerializer? serializer = default,
-      params (string key, object value)[] withConfigurationParameters
+      JsonSerializer? serializer = default
     ) where TComponent : IComponent
-      => json.ToComponentFromJson<TComponent>(deserializeToType, ontoParent, serializer, universe, withConfigurationParameters);
+      => json.ToComponentFromJson<TComponent>(deserializeToType, ontoParent, serializer, universe);
   }
 }

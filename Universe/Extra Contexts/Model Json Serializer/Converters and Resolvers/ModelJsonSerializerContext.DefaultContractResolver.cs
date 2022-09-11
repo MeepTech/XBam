@@ -108,7 +108,7 @@ namespace Meep.Tech.XBam.Json.Configuration {
         }
 
         // add component factory
-        if (typeof(IComponent).IsAssignableFrom(type) || type.IsAssignableToGeneric(typeof(IModel<>))) {
+        if (typeof(IComponent).IsAssignableFrom(type) || (type.IsAssignableToGeneric(typeof(IModel<>)) && !type.IsAssignableToGeneric(typeof(IModel<,>)))) {
           JsonProperty factoryJsonProp;
           if ((factoryJsonProp = baseProps.FirstOrDefault(prop => prop.PropertyName == "key")) == null) {
             factoryJsonProp = resolverPropertyConstructor(_factoryProp, memberSerialization);
@@ -116,7 +116,7 @@ namespace Meep.Tech.XBam.Json.Configuration {
           }
 
           factoryJsonProp.Order = int.MinValue;
-          factoryJsonProp.PropertyName = "key";
+          factoryJsonProp.PropertyName = Models.ComponentsToJsonConverter.ComponentKeyPropertyName;
           factoryJsonProp.Converter = factoryToStringJsonConverter;
           baseProps = baseProps.OrderBy(p => p.Order ?? -1).ToList();
         }

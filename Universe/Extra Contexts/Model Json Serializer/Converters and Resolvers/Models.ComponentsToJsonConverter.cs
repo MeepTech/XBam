@@ -18,6 +18,11 @@ namespace Meep.Tech.XBam.Json.Configuration {
     public class ComponentsToJsonConverter : JsonConverter<IReadableComponentStorage.ReadOnlyModelComponentCollection> {
 
       /// <summary>
+      /// The key used for the field containing the key for the component
+      /// </summary>
+      public const string ComponentKeyPropertyName = "key";
+
+      /// <summary>
       /// The universe this is for
       /// </summary>
       public Universe Universe {
@@ -42,7 +47,7 @@ namespace Meep.Tech.XBam.Json.Configuration {
       ///<summary><inheritdoc/></summary>
       public override IReadableComponentStorage.ReadOnlyModelComponentCollection ReadJson(JsonReader reader, Type objectType, [NotNull] IReadableComponentStorage.ReadOnlyModelComponentCollection? existingValue, bool hasExistingValue, JsonSerializer serializer) {
         if (reader.TokenType != JsonToken.StartObject) {
-          throw new ArgumentException($"Components Field for ECSBAM Models requires an array Jtoken to deserialize");
+          throw new JsonException($"Components Field for ECSBAM Models requires an object Jtoken to deserialize");
         }
 
         JObject componentsJson = serializer.Deserialize<JObject>(reader)!;

@@ -74,7 +74,7 @@ namespace Meep.Tech.XBam {
     /// </summary>
     public static TArchetype AsArchetype<TArchetype>(this System.Type type)
       where TArchetype : Archetype
-        => All.Get<TArchetype>();
+        => (TArchetype)All.Get(type);
 
     #endregion
   }

@@ -13,7 +13,7 @@ namespace Meep.Tech.XBam {
   /// The base class for a mutable data model that can be produced by an Archetype.
   /// This includes a components system.
   /// This is the non-generic base class for Utility
-  /// </summary>
+  //c# get the type of a null object/ </summary>
   public abstract partial class Model
     : IModel 
   {
@@ -30,7 +30,7 @@ namespace Meep.Tech.XBam {
       set => Universe = value; 
     }
 
-    IFactory IModel.Factory 
+  IFactory IModel.Factory 
       => throw new NotImplementedException();
 
     #region Equality

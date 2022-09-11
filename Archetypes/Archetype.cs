@@ -139,7 +139,7 @@ namespace Meep.Tech.XBam {
     /// <summary>
     /// Try to unload this archetype
     /// </summary>
-    protected internal abstract void TryToUnload();
+    protected internal abstract bool TryToUnload();
 
     #endregion
 
@@ -203,7 +203,7 @@ namespace Meep.Tech.XBam {
     /// Can be used to add logic during model setup as a shortcut.
     /// This is called right after the model is initialized.
     /// </summary>
-    internal virtual IModel ConfigureModel(IBuilder? builder, IModel model)
+    internal virtual IModel? OnModelInitialized(IBuilder builder, IModel? model)
       => model;
 
     /// <summary>
@@ -211,7 +211,7 @@ namespace Meep.Tech.XBam {
     /// Can be used to add logic during model setup as a shortcut.
     /// This is called after all logic except finalization of model components.
     /// </summary>
-    internal virtual IModel FinalizeModel(IBuilder? builder, IModel model)
+    internal virtual IModel? OnModelFinalized(IBuilder builder, IModel? model)
       => model;
 
     #endregion
@@ -603,7 +603,7 @@ namespace Meep.Tech.XBam {
         }
 
         Universe.ExtraContexts.OnLoaderArchetypeModelConstructorSetStart!(this);
-        ModelConstructor = b => value.Invoke((IBuilder<TModelBase>)b);
+        ModelConstructor = value is null ? null! : b => value.Invoke((IBuilder<TModelBase>)b);
         Universe.ExtraContexts.OnLoaderArchetypeModelConstructorSetComplete!(this);
       }
     }
@@ -665,29 +665,29 @@ namespace Meep.Tech.XBam {
     /// Function that gets called by default in builders.
     /// Can be used to add logic during model setup as a shortcut.
     /// </summary>
-    protected internal virtual TModelBase ConfigureModel(IBuilder<TModelBase>? builder, TModelBase model)
+    protected internal virtual TModelBase? OnModelInitialized(IBuilder<TModelBase> builder, TModelBase? model)
       => model;
 
     /// <summary>
     /// Function that gets called by default in builders.
     /// Can be used to add logic during model setup as a shortcut.
     /// </summary>
-    protected internal virtual TModelBase FinalizeModel(IBuilder<TModelBase>? builder, TModelBase model)
+    protected internal virtual TModelBase? OnModelFinalized(IBuilder<TModelBase> builder, TModelBase? model)
       => model;
 
     /// <summary>
     /// Function that gets called by default in builders.
     /// Can be used to add logic during model setup as a shortcut.
     /// </summary>
-    internal override IModel ConfigureModel(IBuilder? builder, IModel model)
-      => ConfigureModel((IBuilder<TModelBase>?)builder, (TModelBase)model);
+    internal override IModel? OnModelInitialized(IBuilder builder, IModel? model)
+      => OnModelInitialized((IBuilder<TModelBase>)builder, (TModelBase?)model);
 
     /// <summary>
     /// Function that gets called by default in builders.
     /// Can be used to add logic during model setup as a shortcut.
     /// </summary>
-    internal override IModel FinalizeModel(IBuilder? builder, IModel model)
-      => FinalizeModel((IBuilder<TModelBase>?)builder, (TModelBase)model);
+    internal override IModel? OnModelFinalized(IBuilder builder, IModel? model)
+      => OnModelFinalized((IBuilder<TModelBase>)builder, (TModelBase?)model);
 
     #endregion
 
@@ -841,19 +841,22 @@ namespace Meep.Tech.XBam {
     /// the base version of this calls OnUnload for all extra contexts, if there are any.
     /// </summary>
     protected virtual void OnUnloadFrom(Universe universe)
-      => universe.ExtraContexts.OnUnloadArchetype(this);
+      => universe.ExtraContexts.OnUnloadArchetype!(this);
 
     /// <summary>
     /// Attempts to unload this archetype from the universe and collections it's registered to
     /// </summary>
-    protected internal sealed override void TryToUnload() {
+    protected internal sealed override bool TryToUnload() {
       if (!Universe.Loader.IsFinished || AllowDeInitializationsAfterLoaderFinalization) {
         Universe universe = Universe;
         OnUnloadFrom(universe);
         universe.Archetypes._unRegisterArchetype(this);
         Id._deRegister(universe);
         _deInitialize();
+
+        return true;
       }
+      else return false;
     }
 
     #endregion

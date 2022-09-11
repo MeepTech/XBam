@@ -26,31 +26,56 @@ namespace Meep.Tech.XBam {
       /// </summary>
       internal protected static void InitalizeModel(
         ref IModel? model,
-        IBuilder? @this, 
+        IBuilder? builder, 
         Archetype? archetype = null, 
         Universe? universe = null,
         ModelModifier? onConfigured = null,
         ModelModifier? onFinalized = null
       ) {
-        universe = @this?.Universe ?? universe ?? throw new ArgumentNullException();
-        archetype = @this?.Archetype ?? archetype ?? throw new ArgumentNullException();
+        universe = builder?.Universe ?? universe ?? throw new ArgumentNullException();
+        archetype = builder?.Archetype ?? archetype ?? throw new ArgumentNullException();
 
-        model ??= ((XBam.IFactory)archetype)._modelConstructor(@this)!;
+        model ??= ((XBam.IFactory)archetype)._modelConstructor(builder 
+          ?? throw new ArgumentNullException(nameof(builder)));
 
         if (model is null) {
-          return;
+          if (builder is not null) {
+            model = archetype.OnModelInitialized(builder, model);
+
+            if (model is not null) {
+              if (model is IUnique unique) {
+                model = unique.InitializeId(builder?.TryToGet<string>(nameof(IUnique.Id)));
+              }
+              onConfigured?.Invoke(ref model, archetype, universe, builder);
+              model = model.OnFinalized(builder);
+            }
+
+            model = archetype.OnModelFinalized(builder, model);
+            if (model is not null) {
+              onFinalized?.Invoke(ref model!, archetype, universe, builder);
+            }
+          }
         }
+        else {
+          model = model.OnInitialized(archetype, universe, builder);
+          if (model is IUnique unique) {
+            model = unique.InitializeId(builder?.TryToGet<string>(nameof(IUnique.Id)));
+          }
 
-        model = model.OnInitialized(archetype, universe, @this);
+          if (builder is not null) {
+            model = archetype.OnModelInitialized(builder, model);
+          }
 
-        model = archetype.ConfigureModel(@this, model);
+          onConfigured?.Invoke(ref model!, archetype, universe, builder);
 
-        onConfigured?.Invoke(ref model, archetype, universe, @this);
+          model = model!.OnFinalized(builder);
 
-        model = model.OnFinalized(@this);
-        model = archetype.FinalizeModel(@this, model);
+          if (builder is not null) {
+            model = archetype.OnModelFinalized(builder, model);
+          }
 
-        onFinalized?.Invoke(ref model, archetype, universe, @this);
+          onFinalized?.Invoke(ref model!, archetype, universe, builder);
+        }
       }
     }
   }

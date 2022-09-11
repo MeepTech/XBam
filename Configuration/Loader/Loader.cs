@@ -951,7 +951,7 @@ namespace Meep.Tech.XBam.Configuration {
     Func<Universe, Archetype> _getArchetypeConstructor(Type archetypeSystemType) {
       // We first look for the ctor with the attribute
       var archetypeConstructor = archetypeSystemType.GetConstructors()
-        .First(c => c.GetCustomAttribute(typeof(ArchetypeConstructorAttribute)) is not null);
+        .FirstOrDefault(c => c.GetCustomAttribute(typeof(ArchetypeConstructorAttribute)) is not null);
 
       // then we look for a private parameterless ctor, 
       archetypeConstructor ??= archetypeSystemType.GetConstructor(
@@ -1519,6 +1519,10 @@ namespace Meep.Tech.XBam.Configuration {
       IModel testModel;
       try {
         testModel = potentiallyBuiltModel?.model ?? factory.Make(testBuilder);
+        // if the model base type changed at some point, we need to re-start testing.
+        if (testModel.GetType() != modelBase) {
+          return GetOrBuildTestModel(factory, testModel.GetType());
+        }
       }
       catch (Exception e) {
         Type accurateTargetType = _tryToCalculateAcurateBuilderType(modelBase, e);
@@ -1739,10 +1743,6 @@ namespace Meep.Tech.XBam.Configuration {
     }
 
     Dictionary<string, object>? _generateTestParamsHelper(Archetype factoryType, Type modelType) {
-      if (factoryType.Id.Key.Contains("Jellybean")) {
-        System.Diagnostics.Debugger.Break();
-      } 
-
       Dictionary<string, object>? @params = TestValueBaseAttribute._generateTestParameters(factoryType, modelType);
 
       _loadedTestParams?.Set(factoryType, modelType);

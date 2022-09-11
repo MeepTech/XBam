@@ -36,11 +36,11 @@ namespace Meep.Tech.XBam.Json.Configuration {
     /// <summary>
     /// Used to deserialize a model with this archetype from a json string by default
     /// </summary>
-    protected internal IModel? DeserializeModelFromJson(Archetype archetype, JObject json, System.Type? deserializeToTypeOverride = null, JsonSerializer? serializerOverride = null, params (string key, object value)[] withConfigurationParameters);
+    protected internal IModel? DeserializeModelFromJson(Archetype archetype, JObject json, System.Type? deserializeToTypeOverride = null, JsonSerializer? serializerOverride = null);
 
     /// <summary>
     /// Used to serialize a model with this archetype to a jobject by default
     /// </summary>
-    protected internal IComponent? DeserializeComponentFromJson(Archetype archetype, JObject json, IReadableComponentStorage? ontoParent = null, Type? deserializeToTypeOverride = null, JsonSerializer? serializerOverride = null, params (string key, object value)[] withConfigurationParameters);
+    protected internal IComponent? DeserializeComponentFromJson(Archetype archetype, JObject json, IReadableComponentStorage? ontoParent = null, Type? deserializeToTypeOverride = null, JsonSerializer? serializerOverride = null);
   }
 }

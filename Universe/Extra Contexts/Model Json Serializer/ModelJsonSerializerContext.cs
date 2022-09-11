@@ -54,9 +54,13 @@ namespace Meep.Tech.XBam.Json {
       /// <summary>
       /// Used to deserialize a model with this archetype from a json string by default
       /// </summary>
-      protected virtual internal IModel? DeserializeModelFromJson(Archetype archetype, JObject json, Type? deserializeToTypeOverride = null, JsonSerializer? serializerOverride = null, params (string key, object value)[] withConfigurationParameters) {
+      protected virtual internal IModel? DeserializeModelFromJson(Archetype archetype, JObject json, Type? deserializeToTypeOverride = null, JsonSerializer? serializerOverride = null) {
         deserializeToTypeOverride
           ??= Universe.Models.GetModelTypeProducedBy(archetype);
+
+        if (!archetype.ModelTypeProduced.IsAssignableFrom(deserializeToTypeOverride)) {
+          throw new JsonException($"Cannot deserialize a Model of expected type:{archetype.ModelBaseType.FullName}, to a parent Model class({deserializeToTypeOverride.FullName}) explicitly.");
+        }
 
         IModel? model = DeserializeModelFromJson(json, archetype, deserializeToTypeOverride, serializerOverride);
 
@@ -64,8 +68,7 @@ namespace Meep.Tech.XBam.Json {
           return default;
         }
 
-        var builder = (IModel.IBuilder?)ConstructBuilderForModelDeserialization(archetype, withConfigurationParameters);
-        IModel.IBuilder.InitalizeModel(ref model, builder, archetype, Universe);
+        IModel.IBuilder.InitalizeModel(ref model, null, archetype, Universe);
 
         return model;
       }
@@ -95,17 +98,19 @@ namespace Meep.Tech.XBam.Json {
       /// <summary>
       /// Helper function for making a builder for post-deserialization initialization.
       /// </summary>
-      protected IBuilder? ConstructBuilderForModelDeserialization(Archetype archetype, (string key, object value)[] withConfigurationParameters) 
-        => withConfigurationParameters.Any()
-          ? archetype.GetGenericBuilderConstructor()(archetype, withConfigurationParameters.ToDictionary(p => p.key, p => p.value))
-          : archetype.GetGenericBuilderConstructor()(archetype, null);
+      protected IBuilder? ConstructBuilderForModelDeserialization(Archetype archetype) 
+        => archetype.GetGenericBuilderConstructor()(archetype, null);
 
       /// <summary>
       /// Used to deserialize a model with this archetype from a json string by default
       /// </summary>
-      protected virtual internal IComponent? DeserializeComponentFromJson(Archetype archetype, JObject json, IReadableComponentStorage? ontoParent = null, Type? deserializeToTypeOverride = null, JsonSerializer? serializerOverride = null, params (string key, object value)[] withConfigurationParameters) {
+      protected virtual internal IComponent? DeserializeComponentFromJson(Archetype archetype, JObject json, IReadableComponentStorage? ontoParent = null, Type? deserializeToTypeOverride = null, JsonSerializer? serializerOverride = null) {
         deserializeToTypeOverride
-          ??= Universe.Models.GetModelTypeProducedBy(archetype);
+          ??= archetype.ModelTypeProduced;
+
+        if (!archetype.ModelTypeProduced.IsAssignableFrom(deserializeToTypeOverride)) {
+          throw new JsonException($"Cannot deserialize a Component of expected type:{archetype.ModelBaseType.FullName}, to a parent Component class({deserializeToTypeOverride.FullName}) explicitly.");
+        }
 
         var component = (IComponent?)DeserializeModelFromJson(json, archetype, deserializeToTypeOverride, serializerOverride);
 
@@ -113,7 +118,7 @@ namespace Meep.Tech.XBam.Json {
           return default;
         }
 
-        var builder = ((IComponent.IBuilder?)ConstructBuilderForModelDeserialization(archetype, withConfigurationParameters))
+        var builder = ((IComponent.IBuilder?)ConstructBuilderForModelDeserialization(archetype))
           ?.Modify(b => b.Parent = (IModel?)ontoParent);
         IComponent.IBuilder.InitalizeComponent(ref component, builder, ontoParent, archetype, Universe);
         (ontoParent as IWriteableComponentStorage)?.AddComponent(component);
@@ -123,11 +128,11 @@ namespace Meep.Tech.XBam.Json {
 
       JObject IModelJsonSerializer.SerializeModelToJson(Archetype archetype, IModel model, JsonSerializer? serializerOverride) => SerializeModelToJson(archetype, model, serializerOverride);
 
-      IModel? IModelJsonSerializer.DeserializeModelFromJson(Archetype archetype, JObject json, Type? deserializeToTypeOverride, JsonSerializer? serializerOverride, params (string key, object value)[] withConfigurationParameters)
-        => DeserializeModelFromJson(archetype, json, deserializeToTypeOverride, serializerOverride, withConfigurationParameters);
+      IModel? IModelJsonSerializer.DeserializeModelFromJson(Archetype archetype, JObject json, Type? deserializeToTypeOverride, JsonSerializer? serializerOverride)
+        => DeserializeModelFromJson(archetype, json, deserializeToTypeOverride, serializerOverride);
 
-      IComponent? IModelJsonSerializer.DeserializeComponentFromJson(Archetype archetype, JObject json, IReadableComponentStorage? ontoParent, Type? deserializeToTypeOverride, JsonSerializer? serializerOverride, params (string key, object value)[] withConfigurationParameters)
-        => DeserializeComponentFromJson(archetype, json, ontoParent, deserializeToTypeOverride, serializerOverride, withConfigurationParameters);
+      IComponent? IModelJsonSerializer.DeserializeComponentFromJson(Archetype archetype, JObject json, IReadableComponentStorage? ontoParent, Type? deserializeToTypeOverride, JsonSerializer? serializerOverride)
+        => DeserializeComponentFromJson(archetype, json, ontoParent, deserializeToTypeOverride, serializerOverride);
 
       #region Extra Context Events
 
